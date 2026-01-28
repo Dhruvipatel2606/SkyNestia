@@ -1,8 +1,15 @@
+import dotenv from "dotenv";
+// Load environment variables
+dotenv.config();
+console.log("GEMINI KEY:", process.env.GEMINI_API_KEY); // TEMP CHECK
 import http from "http";
 import { Server } from "socket.io";
 import app from "./app.js";
 
+
 const PORT = process.env.PORT || 5000;
+
+
 
 // Create HTTP server
 const httpServer = http.createServer(app);

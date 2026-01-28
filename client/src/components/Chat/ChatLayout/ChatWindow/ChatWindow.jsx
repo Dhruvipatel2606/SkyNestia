@@ -1,6 +1,6 @@
-import Header from "./Header";
-import Messages from "./Messages";
-import InputBox from "./InputBox";
+import Header from "./Header.jsx";
+import Messages from "./Messages.jsx";
+import InputBox from "./InputBox.jsx";
 
 export default function ChatWindow({ currentChat }) {
     if (!currentChat) {

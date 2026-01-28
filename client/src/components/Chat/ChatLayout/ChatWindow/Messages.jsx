@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getMessages } from "../../../api/MessageRequests";
+import { getMessages } from "../../../../api/MessageRequests";
 
 export default function Messages({ chat }) {
     const [messages, setMessages] = useState([]);

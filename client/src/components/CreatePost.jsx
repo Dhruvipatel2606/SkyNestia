@@ -4,7 +4,6 @@ import Webcam from 'react-webcam';
 import { useNavigate } from 'react-router-dom';
 import { FaCamera, FaImage, FaTimes, FaMusic, FaArrowLeft, FaCheck } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-
 const CreatePost = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(0); // 0: Select Source, 1: Capture/Upload, 2: Edit, 3: Details
@@ -26,6 +25,7 @@ const CreatePost = () => {
     const [visibility, setVisibility] = useState('public');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [generating, setGenerating] = useState(false);
 
     const [activeTab, setActiveTab] = useState('filters');
 
@@ -128,6 +128,23 @@ const CreatePost = () => {
         };
     };
 
+    const handleGenerateCaption = async () => {
+        setGenerating(true);
+        try {
+            const prompt = caption.trim()
+                ? `Write a better version of this caption: "${caption}"`
+                : "Write a creative, aesthetic and engaging caption for a social media post.";
+
+            const { data } = await API.post('/post/generate-caption', { prompt });
+            setCaption(data.caption);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to generate caption");
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     const handleSubmit = async () => {
         if (files.length === 0 && !musicFile) return;
         setLoading(true);
@@ -147,11 +164,6 @@ const CreatePost = () => {
         if (musicFile) {
             formData.append('music', musicFile);
         }
-
-        // Note: Client-side edited images are not being re-processed to blobs here for simplicity
-        // in a real app, you would canvas-draw the edits and send the new blobs.
-        // For this demo, we send originals and assumed the backend/client stores edit metadata if needed
-        // OR we would process them here. Given the complexity, we send original files.
 
         try {
             await API.post('/post', formData, {
@@ -319,32 +331,54 @@ const CreatePost = () => {
                     <div className="details-view" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
                             {previews.length > 0 && <img src={previews[0]} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px' }} alt="thumb" />}
-                            <textarea
-                                placeholder="Write a caption..."
-                                value={caption}
-                                onChange={(e) => setCaption(e.target.value)}
-                                style={{ flex: 1, border: 'none', resize: 'none', fontSize: '16px', fontFamily: 'inherit', outline: 'none' }}
-                                rows={4}
-                            />
-                        </div>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <button
+                                    onClick={handleGenerateCaption}
+                                    disabled={generating}
+                                    style={{
+                                        alignSelf: 'flex-end',
+                                        background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        padding: '5px 10px',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px'
+                                    }}
+                                >
+                                    {generating ? '✨ Magic...' : '✨ AI Caption'}
+                                </button>
+                                <textarea
+                                    placeholder="Write a caption..."
+                                    value={caption}
+                                    onChange={(e) => setCaption(e.target.value)}
+                                    style={{ flex: 1, border: 'none', resize: 'none', fontSize: '16px', fontFamily: 'inherit', outline: 'none' }}
+                                    rows={4}
+                                />
+                            </div>
 
-                        <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: '#f9f9f9', borderRadius: '8px', cursor: 'pointer' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <FaMusic color="#0095f6" />
-                                    <span>{musicName || "Add Music"}</span>
-                                </div>
-                                <input type="file" accept="audio/*" onChange={handleMusicUpload} style={{ display: 'none' }} />
-                                <span style={{ color: '#0095f6', fontWeight: 'bold' }}>{musicName ? 'Change' : 'Upload'}</span>
-                            </label>
-                            {musicFile && (
-                                <audio controls src={URL.createObjectURL(musicFile)} style={{ width: '100%', marginTop: '10px' }} />
-                            )}
-                        </div>
+                            <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: '#f9f9f9', borderRadius: '8px', cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <FaMusic color="#0095f6" />
+                                        <span>{musicName || "Add Music"}</span>
+                                    </div>
+                                    <input type="file" accept="audio/*" onChange={handleMusicUpload} style={{ display: 'none' }} />
+                                    <span style={{ color: '#0095f6', fontWeight: 'bold' }}>{musicName ? 'Change' : 'Upload'}</span>
+                                </label>
+                                {musicFile && (
+                                    <audio controls src={URL.createObjectURL(musicFile)} style={{ width: '100%', marginTop: '10px' }} />
+                                )}
+                            </div>
 
-                        <div className="input-group">
-                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Location</label>
-                            <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Add Location" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                            <div className="input-group">
+                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Location</label>
+                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Add Location" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                            </div>
                         </div>
                     </div>
                 )}

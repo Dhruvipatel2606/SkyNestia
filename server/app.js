@@ -1,7 +1,11 @@
+import dotenv from "dotenv";
+// Load environment variables
+dotenv.config();
+console.log("GEMINI KEY:", process.env.GEMINI_API_KEY); // TEMP CHECK
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import dotenv from 'dotenv';
+
 import { connectDB } from './config/mongodb.js';
 import "./config/redis.js";
 import AuthRoute from './routes/AuthRoute.js';
@@ -12,8 +16,6 @@ import ChatRoute from './routes/ChatRoute.js';
 import MessageRoute from './routes/MessageRoute.js';
 import CommentRoute from './routes/CommentRoute.js';
 
-// Load environment variables
-dotenv.config();
 
 const app = express();
 
@@ -40,8 +42,11 @@ app.use("/api/auth", AuthRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/posts", PostRoute);
 app.use("/api/feed", FeedRoute);
-app.use('/chat', ChatRoute);
-app.use('/message', MessageRoute);
-app.use('/comment', CommentRoute);
+app.use('/api/chat', ChatRoute);
+app.use('/api/message', MessageRoute);
+app.use('/api/comment', CommentRoute);
+
+// Singular aliases for client compatibility
+app.use("/api/post", PostRoute);
 
 export default app;

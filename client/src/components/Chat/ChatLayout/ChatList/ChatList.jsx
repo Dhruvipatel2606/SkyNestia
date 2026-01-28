@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUserChats } from "../../../api/ChatRequests";
+import { getUserChats } from "../../../../api/ChatRequests";
 import Conversation from "../../Conversation";
 
 export default function ChatList({ setCurrentChat }) {

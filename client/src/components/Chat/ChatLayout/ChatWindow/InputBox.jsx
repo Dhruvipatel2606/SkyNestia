@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { addMessage } from "../../../api/MessageRequests";
+import { addMessage } from "../../../../api/MessageRequests";
 
 export default function InputBox({ chat }) {
     const user = JSON.parse(localStorage.getItem("profile"));

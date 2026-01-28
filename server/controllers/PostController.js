@@ -1,8 +1,23 @@
 import postModel from "../models/postModel.js";
-import { getCache, setCache, deleteCache } from "../services/cacheServices.js";
-import mongoose from "mongoose";
 import multer from 'multer';
 import path from 'path';
+import { GoogleGenAI } from "@google/genai";
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+
+//Check if image is safe or not. Make isSafe boolen variable 
+let isSafe = false;
+export async function main() {
+    const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: "Check if this image is safe for work",
+    });
+    if (response.text === "unsafe") {
+        isSafe = false;
+    }
+    else {
+        isSafe = true;
+    }
+}
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
@@ -17,13 +32,17 @@ const storage = multer.diskStorage({
         cb(null, req.body.name || Date.now() + path.extname(file.originalname));
     },
 });
-
 export const upload = multer({ storage: storage });
 
 // Create a new Post
 export const createPost = async (req, res) => {
-    // req.body will contain text fields
-    // req.files will be an object: { images: [files], music: [file] }
+
+    await main();
+    if (!isSafe) {
+        return res.status(400).json({ message: 'Image is not safe for work' });
+        isSafe = true;
+    }
+
     const { description, tags, location, visibility } = req.body;
 
     // Process tags (safe parsing)
@@ -71,9 +90,31 @@ export const createPost = async (req, res) => {
     });
     try {
         await newPost.save();
-        res.status(201).json({ message: 'Post created successfully', post: newPost });
+        isSafe = false;
+        await main();
+        if (!isSafe) {
+            await newPost.deleteOne();
+            return res.status(400).json({ message: 'Image is not safe for work' });
+        }
+        else {
+            res.status(201).json({ message: 'Post created successfully', post: newPost });
+        }
     } catch (error) {
         res.status(500).json({ message: 'Error creating post', error: error.message });
+    }
+};
+
+//generate caption
+export const generateCaption = async (req, res) => {
+    const { image } = req.body;
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Generate a caption for this image: ${image}`,
+        });
+        res.status(200).json({ caption: response.text });
+    } catch (error) {
+        res.status(500).json({ message: 'Error generating caption', error: error.message });
     }
 };
 
