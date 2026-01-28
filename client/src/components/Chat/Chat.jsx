@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import Conversation from "./Conversation";
 import ChatBox from "./ChatBox";
 import "./Chat.css";
+import ChatLayout from "./ChatLayout/ChatLayout";
 import { userChats } from "../../api/ChatRequests";
 import { generateKeyPair, exportKey } from "../../utils/Encryption";
 import { updateUser } from "../../api/UserRequests";
