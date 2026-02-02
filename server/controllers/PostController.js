@@ -407,3 +407,39 @@ export const getFeed = async (req, res) => {
         res.status(500).json({ message: 'Error fetching feed', error: error.message });
     }
 };
+
+// Toggle Save Post
+export const toggleSavePost = async (req, res) => {
+    const postId = req.params.id;
+    const userId = req.userId;
+    try {
+        const user = await userModel.findById(userId);
+        if (user.savedPosts.includes(postId)) {
+            await user.updateOne({ $pull: { savedPosts: postId } });
+            res.status(200).json({ message: 'Post unsaved', saved: false });
+        } else {
+            await user.updateOne({ $push: { savedPosts: postId } });
+            res.status(200).json({ message: 'Post saved', saved: true });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Error saving/unsaving post', error: error.message });
+    }
+};
+
+// Get Saved Posts
+export const getSavedPosts = async (req, res) => {
+    const userId = req.userId;
+    try {
+        const user = await userModel.findById(userId).populate({
+            path: 'savedPosts',
+            populate: { path: 'userId', select: 'username profilePicture' }
+        });
+
+        // Filter out null posts (in case original post was deleted)
+        const savedPosts = user.savedPosts.filter(p => p !== null);
+
+        res.status(200).json(savedPosts);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching saved posts', error: error.message });
+    }
+};
