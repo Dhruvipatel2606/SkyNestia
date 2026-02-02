@@ -11,6 +11,7 @@ import Followers from './components/Followers'
 import TagRequests from './components/TagRequests'
 import PostDetails from './components/PostDetails'
 import Sidebar from './components/Sidebar'
+import SavedPosts from './components/SavedPosts'
 
 import { useEffect, useState } from 'react'
 
@@ -40,8 +41,8 @@ export default function App() {
         transition: 'margin-left 0.3s ease, width 0.3s ease'
       }}>
         <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login setUser={setUser} />} />
+          <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/feed" element={<Feed />} />
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/followers/:id" element={<Followers />} />
           <Route path="/tag-requests" element={<TagRequests />} />
+          <Route path="/saved" element={<SavedPosts />} />
           <Route path="/post/:id" element={<PostDetails />} />
 
         </Routes>

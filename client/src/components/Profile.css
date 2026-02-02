@@ -19,6 +19,7 @@
     font-family: 'Inter', sans-serif;
     width: 100%;
     box-sizing: border-box;
+    transition: background-color 0.3s ease;
 }
 
 /* Cover Image */
@@ -31,6 +32,7 @@
     border-bottom-right-radius: 40px;
     border-top-left-radius: 40px;
     border-top-right-radius: 40px;
+    transition: background 0.3s ease;
 }
 
 .back-arrow {
@@ -64,6 +66,7 @@
     text-align: center;
     position: relative;
     z-index: 10;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .profile-avatar-wrapper {
@@ -85,6 +88,7 @@
     border: 5px solid white;
     background-color: white;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .profile-name {
@@ -295,4 +299,88 @@
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+}
+
+/* --- Dark Mode Overrides for Profile --- */
+body.dark-mode .profile-container {
+    background-color: #020617;
+    /* Very dark blue/black background */
+}
+
+body.dark-mode .profile-card,
+body.dark-mode .edit-modal {
+    background-color: #1e293b;
+    /* Dark card background */
+    color: white;
+    box-shadow: none;
+    /* Often cleaner in dark mode */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .profile-avatar {
+    border-color: #1e293b;
+    /* Match card background */
+    background-color: #1e293b;
+}
+
+body.dark-mode .profile-name,
+body.dark-mode .stat-number,
+body.dark-mode .section-title,
+body.dark-mode .form-group label {
+    color: white;
+}
+
+body.dark-mode .profile-profession,
+body.dark-mode .stat-label,
+body.dark-mode .empty-state {
+    color: #94a3b8;
+    /* Light slate for muted text */
+}
+
+body.dark-mode .btn-blue-soft {
+    background-color: #334155;
+    /* Darker soft button */
+    color: white;
+}
+
+body.dark-mode .btn-blue-soft:hover {
+    background-color: #475569;
+}
+
+body.dark-mode .form-input {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: white;
+}
+
+body.dark-mode .btn-load-more {
+    background-color: transparent;
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .btn-load-more:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* "cover photo should switch to light theme" interpretation:
+   If the user wants the cover photo ITSELF to be lighter in dark mode (unlikely), or 
+   more likely, they want a DIFFERENT default gradient that looks better or "lighter" against the dark UI?
+   OR, maybe they mean the text ON the cover should switch?
+   Let's assume they want a specific different gradient for dark mode, maybe a "night sky" look that is distinct.
+   The current one is already dark blue.
+   Let's try a slightly different, perhaps more "glowing" or "light" themed gradient if that's what they asked?
+   "switch to light theme" -> maybe they want the cover to be LIGHTER in color when in dark mode to provide contrast?
+   Let's try a lighter, contrasting gradient for dark mode default cover.
+*/
+body.dark-mode .profile-cover {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    /* Lighter slate blue for contrast? */
+    /* Or maybe actual "light" colors? */
+    /* background: linear-gradient(135deg, #e0f2fe 0%, #0ea5e9 100%); */
+    /* Let's stick to a sophisticated dark theme variant unless explicitly clearer. */
+    /* Actually, "switch to light theme" might be a typo for "switch to compatible theme". */
+    /* But if they said "cover photo should switch to light theme", maybe they literally want a light-colored cover? */
+    /* Let's give a nice Moon/Night gradient that feels 'lighter' or more 'ethereal'. */
+    background: linear-gradient(to right, #243949 0%, #517fa4 100%);
 }

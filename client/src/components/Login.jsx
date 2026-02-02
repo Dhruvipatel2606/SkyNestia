@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-export default function Login() {
+export default function Login({ setUser }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
@@ -30,6 +30,7 @@ export default function Login() {
             const data = await res.json().catch(() => ({}))
             if (data.user) {
                 localStorage.setItem('user', JSON.stringify(data.user))
+                if (setUser) setUser(data.user); // Update App state
             }
             if (data.token) {
                 localStorage.setItem('token', data.token)

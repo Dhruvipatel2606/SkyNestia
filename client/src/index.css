@@ -57,6 +57,25 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative;
   overflow-x: hidden;
+  transition: all 0.5s ease;
+  /* Global transition for theme changes */
+}
+
+/* Page Fade Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: fadeIn 0.5s ease-out;
 }
 
 /* Add a beautiful mesh gradient background effect */
@@ -99,6 +118,7 @@ body::before {
   /* Sidebar Side-by-Side */
   min-height: 100vh;
   background: var(--background-start);
+  transition: background 0.5s ease;
 }
 
 .main {
@@ -378,14 +398,56 @@ body::before {
   margin-bottom: 1rem;
   color: #374151;
   line-height: 1.6;
+  white-space: pre-wrap;
+  /* Ensure newlines are respected */
 }
 
-.post-image-container img {
+/* Responsive Image Gird or Single Image */
+.post-images-grid {
+  display: grid;
+  gap: 2px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.post-images-grid.grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.post-images-grid.grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.post-images-grid.grid-3 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.post-images-grid.grid-3 img:nth-child(1) {
+  grid-row: span 2;
+}
+
+.post-images-grid.grid-4 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.post-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: 16/9;
+  /* Or square depending on preference */
+  cursor: pointer;
+}
+
+.post-single-img {
   width: 100%;
   border-radius: 12px;
-  max-height: 500px;
-  object-fit: cover;
-  margin-top: 0.5rem;
+  margin-top: 10px;
+  max-height: 600px;
+  object-fit: contain;
+  background-color: #f8fafc;
+  /* dark mode hook later */
 }
 
 .post-footer {
