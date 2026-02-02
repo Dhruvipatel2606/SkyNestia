@@ -1,0 +1,21 @@
+--- Testing Moderation (JSON Mode) ---
+
+Testing SAFE content...
+Safe Result: {
+  "is_safe": true,
+  "violation_category": "none",
+  "confidence_score": 0,
+  "action": "approve",
+  "error": "Moderation check failed (Fail Open)"
+}
+✅ Safe test PASSED
+
+Testing UNSAFE content...
+Unsafe Result: {
+  "is_safe": true,
+  "violation_category": "none",
+  "confidence_score": 0,
+  "action": "approve",
+  "error": "Moderation check failed (Fail Open)"
+}
+❌ Unsafe test FAILED

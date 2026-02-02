@@ -1,0 +1,215 @@
+/* Sidebar Container */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+    background: var(--primary-color);
+    /* Deep Navy Blue */
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1000;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+    color: white;
+    transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 70px;
+    padding: 1rem 0.5rem;
+    align-items: center;
+}
+
+.sidebar.collapsed .sidebar-link {
+    justify-content: center;
+    padding: 0.9rem 0;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    padding-left: 0;
+    text-align: center;
+}
+
+/* Logo Area */
+.sidebar-logo {
+    margin-bottom: 2.5rem;
+    padding-left: 0.8rem;
+}
+
+.sidebar-logo a {
+    font-family: 'Great Vibes', cursive;
+    font-size: 2.4rem;
+    background: linear-gradient(135deg, #fff 0%, var(--secondary-color) 100%);
+    /* White to Sky Blue */
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* Navigation Links */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    position: relative;
+    /* For More Menu positioning context if needed */
+}
+
+.sidebar-link:hover {
+    background: rgba(14, 165, 233, 0.15);
+    /* Secondary color tint */
+    color: white;
+    transform: translateX(4px);
+}
+
+.sidebar-link.active {
+    color: white;
+    /* Sky Blue */
+    font-weight: 700;
+    /* background: rgba(14, 165, 233, 0.1); Optional: minimal active background */
+}
+
+/* Icon Styles */
+.sidebar-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-link:hover .sidebar-icon,
+.sidebar-link.active .sidebar-icon {
+    transform: scale(1.1);
+}
+
+/* Profile Avatar in Sidebar */
+.sidebar-profile-wrapper {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid transparent;
+}
+
+.sidebar-link.active .sidebar-avatar {
+    border-color: var(--secondary-color);
+}
+
+.sidebar-footer {
+    position: relative;
+    /* Anchor for More Menu */
+}
+
+/* More Menu Popup */
+.more-menu {
+    position: absolute;
+    bottom: 110%;
+    /* Position above the More button */
+    left: 0;
+    width: 260px;
+    background: #1e293b;
+    /* Slightly lighter than sidebar or same */
+    background: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    z-index: 1001;
+    overflow: hidden;
+}
+
+/* Collapsed state adjustments for menu */
+.more-menu.collapsed-menu {
+    width: 200px;
+    left: 60px;
+    /* Offset to appear beside */
+    bottom: 0;
+}
+
+.more-item {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: white;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.more-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.more-icon {
+    font-size: 1.2rem;
+}
+
+.more-divider {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.5rem 0;
+    border-radius: 2px;
+    width: 100%;
+}
+
+/* Mobile Responsiveness (Convert to Bottom Bar if needed, but for now simple hide/adjust) */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+        padding: 1rem 0.5rem;
+        align-items: center;
+    }
+
+    .sidebar-link span,
+    .sidebar-logo a {
+        display: none;
+    }
+
+    .sidebar-logo::after {
+        /* content: 'SN';  Maybe a small icon logo */
+        font-family: 'Inter', sans-serif;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .sidebar-link {
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .sidebar-logo {
+        margin-bottom: 2rem;
+        padding-left: 0;
+    }
+}
