@@ -1,5 +1,6 @@
-import { checkPostSafety, checkImageSafety, getGenAI } from "../utils/geminiModeration.js";
+import { checkPostSafety, checkImageSafety, getGenAI, retryWithBackoff } from "../utils/geminiModeration.js";
 import postModel from "../models/postModel.js";
+import userModel from "../models/userModel.js";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -82,7 +83,49 @@ export const createPost = async (req, res) => {
             }
         }
 
-        // 4. Create Post in Database IMMEDIATELY (Optimistic Creation)
+        // 4. Gemini Safety Check (Blocking)
+        let isUnsafe = false;
+        let violationData = null;
+        let violationType = "";
+
+        // Check Text
+        if (hasDescription) {
+            const safetyResult = await checkPostSafety(description);
+            if (safetyResult && safetyResult.action === 'REJECT') {
+                isUnsafe = true;
+                violationType = "text";
+                violationData = safetyResult;
+            }
+        }
+
+        // Check Images
+        if (hasImages && !isUnsafe) {
+            for (const file of imageFiles) {
+                const safetyResult = await checkImageSafety(file.path, file.mimetype);
+                if (safetyResult && safetyResult.action === 'REJECT') {
+                    isUnsafe = true;
+                    violationType = "image";
+                    violationData = safetyResult;
+                    break;
+                }
+            }
+        }
+
+        // 5. Handling Violation
+        if (isUnsafe) {
+            console.log(`[Moderation] Rejecting unsafe post attempt (${violationType}). Details:`, violationData);
+
+            // Clean up files immediately
+            cleanupFiles([...imageFiles, ...musicFiles]);
+
+            return res.status(403).json({
+                message: "Vulnerable content detected.",
+                isVulnerable: true,
+                violationDetails: violationData
+            });
+        }
+
+        // 6. Create Post in Database (Only if safe)
         const post = await postModel.create({
             userId: userId,
             caption: description,
@@ -94,65 +137,14 @@ export const createPost = async (req, res) => {
             music: musicPath,
         });
 
-        // 5. Respond to User INSTANTLY
+        // 7. Respond to User
         res.status(201).json({ message: "Post created successfully", post });
 
-        // 6. Invalidate Feed Cache
+        // 8. Invalidate Feed Cache
         try {
             const keys = await redisClient.keys('feed:*');
             if (keys.length > 0) await redisClient.del(keys);
         } catch (err) { console.error('Redis cache error:', err); }
-
-
-        // 7. BACKGROUND: Gemini Safety Check (Fire and Forget)
-        // This runs AFTER the response is sent. User doesn't wait.
-        (async () => {
-            try {
-                let isUnsafe = false;
-                let violationData = null;
-                let violationType = "";
-
-                // Check Text
-                if (hasDescription && !isUnsafe) {
-                    const safetyResult = await checkPostSafety(description);
-                    if (safetyResult && !safetyResult.is_safe) {
-                        isUnsafe = true;
-                        violationType = "text";
-                        violationData = safetyResult;
-                    }
-                }
-
-                // Check Images
-                if (hasImages && !isUnsafe) {
-                    for (const file of imageFiles) {
-                        const safetyResult = await checkImageSafety(file.path, file.mimetype);
-                        if (safetyResult && !safetyResult.is_safe) {
-                            isUnsafe = true;
-                            violationType = "image";
-                            violationData = safetyResult;
-                            break;
-                        }
-                    }
-                }
-
-                // Handling Violation
-                if (isUnsafe) {
-                    console.log(`[Moderation] Deleting unsafe post ${post._id} (${violationType}). Details:`, violationData);
-                    // Delete from DB
-                    await postModel.findByIdAndDelete(post._id);
-                    // Delete Files
-                    cleanupFiles([...imageFiles, ...musicFiles]);
-
-                    // Optional: You could notify the user via WebSocket here that their post was removed
-                } else {
-                    console.log(`[Moderation] Post ${post._id} verified SAFE.`);
-                }
-
-            } catch (bgError) {
-                console.error("[Moderation] Background check failed:", bgError);
-                // Fail Open or Closed? Currently doing nothing, so post stays.
-            }
-        })().catch(err => console.error("[Moderation] IIFE Fatal Error:", err));
 
     } catch (error) {
         console.error("Create Post Error:", error);
@@ -172,29 +164,35 @@ export const createPost = async (req, res) => {
 export const generateCaption = async (req, res) => {
     try {
         const { image, mimeType, prompt } = req.body;
-        if (!image) return res.status(400).json({ message: "Image data required" });
 
-        // Use gemini-1.5-flash for consistent multimodal performance
-        const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const imagePart = {
-            inlineData: {
-                data: image,
-                mimeType: mimeType || "image/jpeg"
+        const result = await retryWithBackoff(async () => {
+            if (image) {
+                // Multimodal Request
+                const imagePart = {
+                    inlineData: {
+                        data: image,
+                        mimeType: mimeType || "image/jpeg"
+                    }
+                };
+                return await model.generateContent([
+                    imagePart,
+                    prompt || "Generate a creative, short social media caption for this image."
+                ]);
+            } else {
+                // Text-only Request
+                const textPrompt = prompt || "Write a creative social media caption about life and positivity.";
+                return await model.generateContent(textPrompt);
             }
-        };
-
-        const result = await model.generateContent([
-            imagePart,
-            prompt || "Generate a creative caption for this image."
-        ]);
+        });
 
         const caption = result.response.text();
-        res.status(200).json({ caption });
+        res.status(200).json({ caption: caption.replace(/\n/g, ' ').trim() });
 
     } catch (error) {
-        console.error("Caption Gen Error:", error);
-        res.status(500).json({ message: "Caption generation failed", error: error.message });
+        console.error("AI Caption Error:", error);
+        res.status(500).json({ message: "AI generation failed", error: error.message });
     }
 };
 
@@ -220,16 +218,12 @@ export const getPost = async (req, res) => {
 // Update Post
 export const updatePost = async (req, res) => {
     const postId = req.params.id;
-    const { userId } = req.body; // Careful: req.body.userId might be spoofed. Middleware userId is safer.
-    // However, if logic depends on checking ownership, we use req.userId from authMiddleware usually.
-    // For now keeping existing logic but aiming for safety.
+    const userId = req.userId;
 
     try {
         const post = await postModel.findById(postId);
         if (!post) return res.status(404).json({ message: 'Post not found' });
 
-        // Check ownership (assuming req.userId is set by middleware, fallback to body if not)
-        // Adjust based on your auth implementation
         if (post.userId.toString() === userId) {
             await postModel.findByIdAndUpdate(postId, { $set: req.body });
             res.status(200).json({ message: 'Post updated successfully' });
@@ -277,7 +271,7 @@ export const deletePost = async (req, res) => {
 
 export const likePost = async (req, res) => {
     const postId = req.params.id;
-    const { userId } = req.body;
+    const userId = req.userId;
 
     try {
         const post = await postModel.findById(postId);
@@ -409,16 +403,21 @@ export const getFeed = async (req, res) => {
 };
 
 // Toggle Save Post
+// Toggle Save Post
 export const toggleSavePost = async (req, res) => {
     const postId = req.params.id;
     const userId = req.userId;
     try {
         const user = await userModel.findById(userId);
-        if (user.savedPosts.includes(postId)) {
+
+        // Fix: Compare string representations of ObjectIds
+        const isSaved = user.savedPosts.some(id => id.toString() === postId);
+
+        if (isSaved) {
             await user.updateOne({ $pull: { savedPosts: postId } });
             res.status(200).json({ message: 'Post unsaved', saved: false });
         } else {
-            await user.updateOne({ $push: { savedPosts: postId } });
+            await user.updateOne({ $addToSet: { savedPosts: postId } }); // $addToSet prevents duplicates
             res.status(200).json({ message: 'Post saved', saved: true });
         }
     } catch (error) {

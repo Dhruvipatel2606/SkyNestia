@@ -94,6 +94,7 @@ const Chat = () => {
         <div className="Chat">
             <ChatLayout
                 chats={chats}
+                setChats={setChats}
                 currentChat={currentChat}
                 setCurrentChat={setCurrentChat}
                 onlineUsers={onlineUsers}

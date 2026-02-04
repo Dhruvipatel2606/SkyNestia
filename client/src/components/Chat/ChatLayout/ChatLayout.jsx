@@ -3,6 +3,7 @@ import ChatBox from "../ChatBox";
 
 export default function ChatLayout({
     chats,
+    setChats,
     currentChat,
     setCurrentChat,
     onlineUsers,
@@ -15,6 +16,7 @@ export default function ChatLayout({
         <div className="chatLayout">
             <ChatList
                 chats={chats}
+                setChats={setChats}
                 setCurrentChat={setCurrentChat}
                 onlineUsers={onlineUsers}
                 currentUser={currentUser}

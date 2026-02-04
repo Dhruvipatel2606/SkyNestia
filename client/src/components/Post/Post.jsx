@@ -18,11 +18,12 @@ const Post = ({ post }) => {
 
     const currentUserStr = localStorage.getItem("user");
     const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-    // ... existing code ...
-
-    // ... inside return ...
-    /* Content (Image) */
     const currentUserId = currentUser?._id;
+
+    const isOwner = currentUser && (
+        (post.userId?._id === currentUserId) ||
+        (post.userId === currentUserId)
+    );
 
     const [isSaved, setIsSaved] = useState(() => {
         if (!currentUser || !currentUser.savedPosts) return false;
@@ -92,7 +93,7 @@ const Post = ({ post }) => {
             try {
                 await navigator.share({
                     title: 'SkyNestia Post',
-                    text: post.description,
+                    text: post.caption,
                     url: window.location.href, // Or specific post URL if you have routed post details
                 });
             } catch (error) {
@@ -138,8 +139,7 @@ const Post = ({ post }) => {
             if (currentUser) {
                 let newSaved = currentUser.savedPosts || [];
                 if (res.data.saved) {
-                    if (typeof newSaved[0] === 'string' || !newSaved[0]) newSaved.push(post._id);
-                    else newSaved.push({ _id: post._id });
+                    if (!newSaved.includes(post._id)) newSaved.push(post._id);
                 } else {
                     newSaved = newSaved.filter(id => (id._id || id) !== post._id);
                 }
@@ -184,7 +184,7 @@ const Post = ({ post }) => {
                     <button className="icon-btn" onClick={() => setShowOptions(!showOptions)}><FiMoreHorizontal /></button>
                     {showOptions && (
                         <div className="options-menu">
-                            {currentUserId === post.userId._id && (
+                            {isOwner && (
                                 <div className="option-item delete" onClick={handleDelete}>Delete</div>
                             )}
                             <div className="option-item" onClick={() => setShowOptions(false)}>Cancel</div>
@@ -272,8 +272,8 @@ const Post = ({ post }) => {
                 <div className="post-caption">
                     <span className="caption-username">{getUserName(post.userId)}</span>&nbsp;
                     <span className="caption-text">
-                        {isExpanded ? post.description : (post.description?.substring(0, 90))}
-                        {post.description?.length > 90 && !isExpanded && (
+                        {isExpanded ? post.caption : (post.caption?.substring(0, 120))}
+                        {post.caption?.length > 120 && !isExpanded && (
                             <span className="more-btn" onClick={() => setIsExpanded(true)}> ... more</span>
                         )}
                     </span>

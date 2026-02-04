@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import API from '../api';
 import Webcam from 'react-webcam';
 import { useNavigate } from 'react-router-dom';
-import { FaCamera, FaImage, FaTimes, FaMusic, FaArrowLeft, FaCheck, FaUserTag } from 'react-icons/fa';
+import { FaCamera, FaImage, FaTimes, FaMusic, FaArrowLeft, FaCheck, FaUserTag, FaSmile } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import EmojiPicker from 'emoji-picker-react';
 const CreatePost = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(0); // 0: Select Source, 1: Capture/Upload, 2: Edit, 3: Details
@@ -38,14 +39,39 @@ const CreatePost = () => {
     // Music Library State
     const [showMusicLibrary, setShowMusicLibrary] = useState(false);
     const [musicUrl, setMusicUrl] = useState(null);
+    const [musicSearchQuery, setMusicSearchQuery] = useState('');
+    const [musicResults, setMusicResults] = useState([]);
+    const [isSearchingMusic, setIsSearchingMusic] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-    const musicLibrary = [
-        { title: "Energy", url: "https://www.bensound.com/bensound-music/bensound-energy.mp3" },
-        { title: "Summer", url: "https://www.bensound.com/bensound-music/bensound-summer.mp3" },
-        { title: "Smile", url: "https://www.bensound.com/bensound-music/bensound-smile.mp3" },
-        { title: "Dreams", url: "https://www.bensound.com/bensound-music/bensound-dreams.mp3" },
-        { title: "Adventure", url: "https://www.bensound.com/bensound-music/bensound-adventure.mp3" }
-    ];
+    const searchMusic = async (query) => {
+        if (!query) return;
+        setIsSearchingMusic(true);
+        try {
+            // Using iTunes Search API (no key required, supports Bollywood/Hollywood via terms)
+            const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=10`);
+            const data = await response.json();
+            const formattedResults = data.results.map(item => ({
+                id: item.trackId,
+                title: item.trackName,
+                artist: item.artistName,
+                url: item.previewUrl, // 30s preview clip
+                cover: item.artworkUrl100
+            }));
+            setMusicResults(formattedResults);
+        } catch (err) {
+            console.error("Music search failed", err);
+        } finally {
+            setIsSearchingMusic(false);
+        }
+    };
+
+    // Quick filter for categories
+    const handleMusicCategory = (type) => {
+        const query = type === 'Bollywood' ? 'Bollywood Trending' : type === 'Hollywood' ? 'Hollywood Hits' : 'Trending Hits';
+        setMusicSearchQuery(query);
+        searchMusic(query);
+    };
 
     // Load last user choice for camera/gallery
     useEffect(() => {
@@ -155,40 +181,42 @@ const CreatePost = () => {
     };
 
     const handleGenerateCaption = async () => {
-        if (files.length === 0) {
-            alert("Please select an image first.");
-            return;
-        }
-
         setGenerating(true);
         try {
-            // Helper to convert file to base64
-            const toBase64 = file => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
+            let payload = {};
 
-            const base64Image = await toBase64(files[0]);
+            if (files.length > 0) {
+                // Multimodal: Image + Text (if any)
+                const toBase64 = file => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                });
 
-            // Send the base64 image (removing the prefix)
-            const imagePart = base64Image.split(',')[1];
-            const mimeType = files[0].type;
+                const base64Image = await toBase64(files[0]);
+                const imagePart = base64Image.split(',')[1];
+                const mimeType = files[0].type;
 
-            const prompt = caption.trim()
-                ? `Write a better version of this caption: "${caption}". Keep it aesthetic and short.`
-                : "Write a creative, aesthetic and engaging caption for this image for a social media post. Keep it short and use emojis.";
+                const prompt = caption.trim()
+                    ? `Improve this social media caption based on the image: "${caption}". Make it highly engaging and use many relevant emojis.`
+                    : "Write a high-quality, aesthetic social media caption for this image. Use plenty of expressive emojis.";
 
-            const { data } = await API.post('/post/generate-caption', {
-                image: imagePart,
-                mimeType: mimeType,
-                prompt: prompt
-            });
+                payload = { image: imagePart, mimeType, prompt };
+            } else {
+                // Text-only: Improve or suggest based on current input
+                payload = {
+                    prompt: caption.trim()
+                        ? `Complete or improve this social media post: "${caption}". Make it fun and use emojis.`
+                        : "Suggest a trending, creative social media post about life, technology, or travel. Include many emojis."
+                };
+            }
+
+            const { data } = await API.post('/post/generate-caption', payload);
             setCaption(data.caption);
         } catch (err) {
             console.error(err);
-            alert("Failed to generate caption. Ensure you have a valid image.");
+            alert("AI suggestion failed. Please try again.");
         } finally {
             setGenerating(false);
         }
@@ -225,8 +253,15 @@ const CreatePost = () => {
         setTaggedUsers(taggedUsers.filter(u => u._id !== userId));
     };
 
+    const [showVulnerabilityModal, setShowVulnerabilityModal] = useState(false);
+    const [violationType, setViolationType] = useState('');
+
+    const onEmojiClick = (emojiObject) => {
+        setCaption(prev => prev + emojiObject.emoji);
+    };
+
     const handleSubmit = async () => {
-        if (files.length === 0 && !musicFile) return;
+        if (files.length === 0 && !musicFile && !musicUrl && !caption.trim()) return;
         setLoading(true);
         setError(null);
 
@@ -257,7 +292,12 @@ const CreatePost = () => {
             });
             navigate('/home'); // Assuming home is feed
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to create post");
+            if (err.response?.status === 403 && err.response?.data?.isVulnerable) {
+                setViolationType(err.response.data.violationDetails?.category || "Unsafe Content");
+                setShowVulnerabilityModal(true);
+            } else {
+                setError(err.response?.data?.message || "Failed to create post");
+            }
         } finally {
             setLoading(false);
         }
@@ -276,7 +316,7 @@ const CreatePost = () => {
                     {step === 3 ? (
                         <button
                             onClick={handleSubmit}
-                            disabled={loading || (files.length === 0 && !musicFile && !musicUrl)}
+                            disabled={loading || (files.length === 0 && !musicFile && !musicUrl && !caption.trim())}
                             className="btn-primary"
                             style={{ padding: '8px 20px', borderRadius: '20px' }}
                         >
@@ -310,6 +350,16 @@ const CreatePost = () => {
                             <div>
                                 <h3 style={{ margin: 0 }}>Take Photo</h3>
                                 <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>Use your camera to capture moments</p>
+                            </div>
+                        </div>
+
+                        <div
+                            onClick={() => setStep(3)}
+                            style={{ padding: '30px', border: '1px solid #ddd', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                            <div style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5', borderRadius: '50%', fontSize: '18px', fontWeight: 'bold', color: '#050505' }}>T</div>
+                            <div>
+                                <h3 style={{ margin: 0 }}>Write Post</h3>
+                                <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>Share what's on your mind</p>
                             </div>
                         </div>
                     </motion.div>
@@ -438,13 +488,28 @@ const CreatePost = () => {
                                 >
                                     {generating ? '✨ Magic...' : '✨ AI Caption'}
                                 </button>
-                                <textarea
-                                    placeholder="Write a caption..."
-                                    value={caption}
-                                    onChange={(e) => setCaption(e.target.value)}
-                                    style={{ flex: 1, border: 'none', resize: 'none', fontSize: '16px', fontFamily: 'inherit', outline: 'none' }}
-                                    rows={4}
-                                />
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <textarea
+                                        placeholder="Write something interesting..."
+                                        value={caption}
+                                        onChange={(e) => setCaption(e.target.value)}
+                                        style={{ flex: 1, border: 'none', resize: 'none', fontSize: '16px', fontFamily: 'inherit', outline: 'none' }}
+                                        rows={4}
+                                    />
+                                    <div style={{ position: 'relative' }}>
+                                        <button
+                                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
+                                        >
+                                            <FaSmile size={24} />
+                                        </button>
+                                        {showEmojiPicker && (
+                                            <div style={{ position: 'absolute', bottom: '100%', right: 0, zIndex: 10 }}>
+                                                <EmojiPicker onEmojiClick={onEmojiClick} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -507,18 +572,66 @@ const CreatePost = () => {
                             )}
 
                             {showMusicLibrary && (
-                                <div style={{ marginTop: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '8px', padding: '10px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                        <strong>Select Song</strong>
-                                        <button onClick={() => setShowMusicLibrary(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><FaTimes /></button>
+                                <div style={{ marginTop: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '12px', padding: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                        <strong style={{ fontSize: '16px' }}>Music Library</strong>
+                                        <button onClick={() => setShowMusicLibrary(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}><FaTimes /></button>
                                     </div>
-                                    <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                        {musicLibrary.map((track, i) => (
-                                            <div key={i} onClick={() => handleSelectLibraryMusic(track)} style={{ padding: '10px', background: '#f8f9fa', borderRadius: '4px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>{track.title}</span>
-                                                <span style={{ fontSize: '12px', color: '#666' }}>Select</span>
-                                            </div>
+
+                                    {/* Search Bar */}
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search Bollywood, Hollywood..."
+                                            value={musicSearchQuery}
+                                            onChange={(e) => setMusicSearchQuery(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && searchMusic(musicSearchQuery)}
+                                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px' }}
+                                        />
+                                        <button
+                                            onClick={() => searchMusic(musicSearchQuery)}
+                                            style={{ background: '#0095f6', color: 'white', border: 'none', borderRadius: '8px', padding: '0 15px', fontWeight: 'bold', cursor: 'pointer' }}
+                                        >
+                                            Go
+                                        </button>
+                                    </div>
+
+                                    {/* Categories */}
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', overflowX: 'auto', paddingBottom: '5px' }}>
+                                        {['Bollywood', 'Hollywood', 'Trending'].map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => handleMusicCategory(cat)}
+                                                style={{ whiteSpace: 'nowrap', padding: '6px 12px', background: '#f0f2f5', border: 'none', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                            >
+                                                {cat}
+                                            </button>
                                         ))}
+                                    </div>
+
+                                    <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {isSearchingMusic ? (
+                                            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Searching online...</div>
+                                        ) : musicResults.length > 0 ? (
+                                            musicResults.map((track) => (
+                                                <div
+                                                    key={track.id}
+                                                    onClick={() => handleSelectLibraryMusic(track)}
+                                                    style={{ padding: '10px', background: '#f8f9fa', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', transition: 'background 0.2s' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#edf2f7'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                                                >
+                                                    <img src={track.cover} alt="art" style={{ width: '40px', height: '40px', borderRadius: '4px' }} />
+                                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                        <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.title}</div>
+                                                        <div style={{ fontSize: '12px', color: '#666' }}>{track.artist}</div>
+                                                    </div>
+                                                    <div style={{ fontSize: '12px', color: '#0095f6', fontWeight: 'bold' }}>Select</div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>Search for your favorite songs</div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -529,6 +642,50 @@ const CreatePost = () => {
                             <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Add Location" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                         </div>
                     </div>
+                )}
+                {/* Vulnerability Alert Modal */}
+                {showVulnerabilityModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 1000, padding: '20px'
+                        }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            style={{
+                                background: 'white', padding: '30px', borderRadius: '16px',
+                                maxWidth: '400px', width: '100%', textAlign: 'center'
+                            }}
+                        >
+                            <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                            <h2 style={{ color: '#e1306c', marginBottom: '10px' }}>Post Rejected</h2>
+                            <p style={{ color: '#666', marginBottom: '20px', lineHeight: '1.5' }}>
+                                This post contains content that violates our community safety standards.
+                                <br />
+                                <strong>Category: {violationType}</strong>
+                            </p>
+                            <p style={{ fontSize: '14px', color: '#999', marginBottom: '25px' }}>
+                                You are not able to upload this post. Please ensure your content follows our guidelines.
+                            </p>
+                            <button
+                                onClick={() => navigate('/home')}
+                                className="btn-primary"
+                                style={{
+                                    width: '100%', padding: '12px', borderRadius: '10px',
+                                    background: '#0095f6', border: 'none', color: 'white',
+                                    fontWeight: 'bold', cursor: 'pointer'
+                                }}
+                            >
+                                Go to Feed
+                            </button>
+                        </motion.div>
+                    </motion.div>
                 )}
             </div>
         </AnimatePresence>

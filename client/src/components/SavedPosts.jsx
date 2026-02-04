@@ -23,12 +23,10 @@ const SavedPosts = () => {
     }, []);
 
     const getPostImg = (post) => {
-        // Post images might be stored as "/images/filename.png" or just "filename.png"
         const img = post.image || (post.images && post.images[0]);
         if (!img) return null;
         if (img.startsWith("http")) return img;
-        const filename = img.split('/').pop();
-        return `http://localhost:5000/images/${filename}`;
+        return `${API.defaults.baseURL.replace('/api', '')}${img}`;
     };
 
     if (loading) return <div style={{ textAlign: 'center', marginTop: '50px', color: '#2563eb' }}>Loading Saved Posts...</div>;

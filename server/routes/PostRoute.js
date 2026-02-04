@@ -13,10 +13,10 @@ router.put('/:id/save', authMiddleware, toggleSavePost);
 
 router.get('/:id', getPost);
 router.get('/user/:id', getUserPosts);
-router.put('/:id', updatePost);
+router.put('/:id', authMiddleware, updatePost);
 
 router.delete('/:id', authMiddleware, deletePost);
-router.put('/:id/like', likePost);
+router.put('/:id/like', authMiddleware, likePost);
 router.get('/tags/pending', authMiddleware, getPendingTagPosts);
 router.put('/:id/tag', authMiddleware, toggleTagStatus);
 router.get('/user/:userId/feed', authMiddleware, getFeed);

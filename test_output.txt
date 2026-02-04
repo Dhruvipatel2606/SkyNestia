@@ -2,20 +2,20 @@
 
 Testing SAFE content...
 Safe Result: {
-  "is_safe": true,
-  "violation_category": "none",
-  "confidence_score": 0,
-  "action": "approve",
-  "error": "Moderation check failed (Fail Open)"
+  "action": "APPROVE",
+  "category": "none",
+  "confidence_score": 1,
+  "reasoning_brief": "Moderation check failed (Fail Open)",
+  "delete_immediately": false
 }
-✅ Safe test PASSED
+❌ Safe test FAILED
 
 Testing UNSAFE content...
 Unsafe Result: {
-  "is_safe": true,
-  "violation_category": "none",
-  "confidence_score": 0,
-  "action": "approve",
-  "error": "Moderation check failed (Fail Open)"
+  "action": "APPROVE",
+  "category": "none",
+  "confidence_score": 1,
+  "reasoning_brief": "Moderation check failed (Fail Open)",
+  "delete_immediately": false
 }
 ❌ Unsafe test FAILED

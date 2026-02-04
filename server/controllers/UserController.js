@@ -203,6 +203,29 @@ export const getFollowers = async (req, res) => {
     }
 };
 
+// Get Following List
+export const getFollowing = async (req, res) => {
+    const userId = req.params.id;
+    const cacheKey = `following:${userId}`;
+
+    try {
+        const cachedFn = await redisClient.get(cacheKey);
+        if (cachedFn) {
+            return res.status(200).json(JSON.parse(cachedFn));
+        }
+
+        const user = await UserModel.findById(userId).populate('following', 'username profilePicture firstname lastname');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const following = user.following;
+        await redisClient.set(cacheKey, JSON.stringify(following), { EX: 3600 });
+
+        res.status(200).json(following);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching following', error: error.message });
+    }
+};
+
 // Get Mutual Followers
 export const getMutualFollowers = async (req, res) => {
     const userId = req.params.id; // The profile we are viewing

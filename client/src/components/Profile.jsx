@@ -153,18 +153,14 @@ const Profile = () => {
   const getProfileImg = (img) => {
     if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
     if (img.startsWith("http")) return img;
-    // If it comes from server as "images/file.png" or just "file.png"
-    const filename = img.split('/').pop();
-    return `http://localhost:5000/images/${filename}`;
+    return `${API.defaults.baseURL.replace('/api', '')}${img.startsWith('/') ? '' : '/images/'}${img.split('/').pop()}`;
   };
 
   const getPostImg = (post) => {
-    // Post images might be stored as "/images/filename.png" or just "filename.png"
     const img = post.image || (post.images && post.images[0]);
     if (!img) return null;
     if (img.startsWith("http")) return img;
-    const filename = img.split('/').pop();
-    return `http://localhost:5000/images/${filename}`;
+    return `${API.defaults.baseURL.replace('/api', '')}${img}`;
   };
 
   if (!profileId) return <div className="card">Please log in to view your profile.</div>;

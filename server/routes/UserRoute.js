@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getMutualFollowers } from '../controllers/UserController.js';
+import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers } from '../controllers/UserController.js';
 import { upload } from '../controllers/PostController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import UserModel from '../models/userModel.js';
@@ -55,6 +55,7 @@ router.put('/profile/cache/:id', async (req, res) => {
 router.get('/search', authMiddleware, searchUser); // search user
 router.get("/suggested/users", authMiddleware, suggestedUsers); // suggested users
 router.get("/followers/:id", getFollowers);
+router.get("/following/:id", getFollowing);
 router.get("/mutual/:id", authMiddleware, getMutualFollowers);
 
 // Generic routes

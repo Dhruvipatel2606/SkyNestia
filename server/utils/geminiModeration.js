@@ -5,7 +5,7 @@ import fs from "fs";
 let genAIInstance = null;
 
 // Helper to handle rate limits
-const retryWithBackoff = async (fn, retries = 5, delay = 2000) => {
+export const retryWithBackoff = async (fn, retries = 5, delay = 2000) => {
     try {
         return await fn();
     } catch (error) {
@@ -35,37 +35,45 @@ export const getGenAI = () => {
 };
 
 const SYSTEM_PROMPT = `
-Role: You are an expert Social Media Safety Agent.
-Task: Analyze the provided content (text or image) for any violations of community safety standards.
+Role: You are an expert Content Safety Auditor for a high-traffic social media platform.
 
-Evaluation Criteria:
-1. Violence & Incitement: Does it depict physical harm, weapons, or promote illegal acts?
-2. Hate Speech: Does it contain symbols, gestures, or text targeting protected groups?
-3. Harassment: Does it target a specific individual for mockery or degradation?
-4. Sensitive Content: Does it contain nudity, sexual suggestive poses, or graphic injuries?
-5. Deceptive Content: Is it a "Deepfake" or AI-generated image meant to mislead?
+Objective: Analyze the provided image or text to determine if it violates community safety policies. Your primary goal is to protect users from harmful, illegal, or graphic content.
 
-Output Format:
-You must respond in a valid JSON format with the following keys:
-* is_safe: (boolean) true if the content is allowed, false if it should be deleted.
-* violation_category: (string) "none" or the specific category violated.
-* confidence_score: (number 0-1) How sure are you of this judgment?
-* action: (string) "approve" or "reject".
+Safety Categories to Audit:
+1. VIOLENCE: Graphic injury, weapons used in a threatening manner, or promotion of self-harm.
+2. NUDITY: Explicit sexual content, exposed genitals, or highly suggestive non-consensual imagery.
+3. HATE_SPEECH: Symbols of hate groups, racist tropes, or dehumanizing imagery targeting protected groups.
+4. HARASSMENT: Doxing (revealing private info), targeted bullying, or malicious mockery of individuals.
+5. ILLEGAL: Depiction of illegal drugs, regulated goods sales, or criminal acts.
+
+Operational Rules:
+- Be strict. If content is borderline, flag it as 'REJECT'.
+- Do not provide conversational text.
+- Respond ONLY in the following JSON format.
+
+JSON Schema:
+{
+  "action": "APPROVE" | "REJECT",
+  "category": "string (the violation category or 'none')",
+  "confidence_score": 0.0 to 1.0,
+  "reasoning_brief": "One sentence explanation for the decision",
+  "delete_immediately": true | false
+}
 `;
 
 // Default safe response in case of failure
 const DEFAULT_SAFE_RESPONSE = {
-    is_safe: true,
-    violation_category: "none",
-    confidence_score: 0,
-    action: "approve",
-    error: "Moderation check failed (Fail Open)"
+    action: "APPROVE",
+    category: "none",
+    confidence_score: 1.0,
+    reasoning_brief: "Moderation check failed (Fail Open)",
+    delete_immediately: false
 };
 
 export async function checkPostSafety(postText) {
     // gemini-1.5-flash is generally faster and cheaper for this, supports JSON mode
     const model = getGenAI().getGenerativeModel({
-        model: "gemini-2.0-flash-lite-001",
+        model: "gemini-2.5-flash",
         generationConfig: {
             responseMimeType: "application/json"
         },
@@ -74,7 +82,7 @@ export async function checkPostSafety(postText) {
 
     try {
         const result = await retryWithBackoff(async () => {
-            const res = await model.generateContent(`Analyze this text:\n"${postText}"`);
+            const res = await model.generateContent(`Audit this post for safety compliance. Text content: "${postText}"`);
             return res.response.text();
         });
 
@@ -96,7 +104,7 @@ export async function checkPostSafety(postText) {
 export async function checkImageSafety(filePath, mimeType) {
     try {
         const model = getGenAI().getGenerativeModel({
-            model: "gemini-2.0-flash-lite-001",
+            model: "gemini-2.5-flash",
             generationConfig: {
                 responseMimeType: "application/json"
             },
@@ -113,7 +121,7 @@ export async function checkImageSafety(filePath, mimeType) {
                         mimeType: mimeType
                     }
                 },
-                "Analyze this image."
+                "Audit this post for safety compliance."
             ]);
             return res.response.text();
         });

@@ -44,17 +44,16 @@ export default function App() {
           <Route path="/" element={<Login setUser={setUser} />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/feed" element={<Feed />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/create-post" element={<CreatePost />} />
-          <Route path="/profile/:id" element={<Profile />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/followers/:id" element={<Followers />} />
-          <Route path="/tag-requests" element={<TagRequests />} />
-          <Route path="/saved" element={<SavedPosts />} />
-          <Route path="/post/:id" element={<PostDetails />} />
+          <Route path="/dashboard" element={user ? <Dashboard /> : <Login setUser={setUser} />} />
+          <Route path="/feed" element={user ? <Feed /> : <Login setUser={setUser} />} />
+          <Route path="/chat" element={user ? <Chat /> : <Login setUser={setUser} />} />
+          <Route path="/create-post" element={user ? <CreatePost /> : <Login setUser={setUser} />} />
+          <Route path="/profile/:id" element={user ? <Profile /> : <Login setUser={setUser} />} />
+          <Route path="/profile" element={user ? <Profile /> : <Login setUser={setUser} />} />
+          <Route path="/followers/:id" element={user ? <Followers /> : <Login setUser={setUser} />} />
+          <Route path="/tag-requests" element={user ? <TagRequests /> : <Login setUser={setUser} />} />
+          <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
+          <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
 
         </Routes>
       </main>
