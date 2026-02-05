@@ -29,11 +29,11 @@ export default function Login({ setUser }) {
             // on success - store user and token, then navigate to dashboard
             const data = await res.json().catch(() => ({}))
             if (data.user) {
-                localStorage.setItem('user', JSON.stringify(data.user))
+                sessionStorage.setItem('user', JSON.stringify(data.user))
                 if (setUser) setUser(data.user); // Update App state
             }
             if (data.token) {
-                localStorage.setItem('token', data.token)
+                sessionStorage.setItem('token', data.token)
             }
             navigate('/feed') // Direct to feed for better UX
         } catch (err) {

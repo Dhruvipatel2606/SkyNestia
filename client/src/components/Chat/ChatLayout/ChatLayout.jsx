@@ -13,7 +13,7 @@ export default function ChatLayout({
     setSendMessage
 }) {
     return (
-        <div className="chatLayout">
+        <div className={`chatLayout ${currentChat ? 'chat-active' : ''}`}>
             <ChatList
                 chats={chats}
                 setChats={setChats}
@@ -26,6 +26,7 @@ export default function ChatLayout({
                 currentUser={currentUser?._id}
                 setSendMessage={setSendMessage}
                 receiveMessage={receiveMessage}
+                setChat={setCurrentChat} // Pass handler for back button
             />
         </div>
     );

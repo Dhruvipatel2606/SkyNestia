@@ -1,68 +1,12 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import fs from "fs";
+import { getGenAI, SYSTEM_PROMPT, retryWithBackoff } from './geminiBase.js';
+import { getIO, getSocketByUserId } from '../socket/io.js';
+import fs from 'fs';
+import path from 'path';
 
-// Lazy initialization
-let genAIInstance = null;
+// Re-export for convenience
+export { getGenAI, SYSTEM_PROMPT };
 
-// Helper to handle rate limits
-export const retryWithBackoff = async (fn, retries = 5, delay = 2000) => {
-    try {
-        return await fn();
-    } catch (error) {
-        if (retries === 0 || !error.message.includes('429')) throw error;
-
-        // Extract wait time if available, otherwise use default backoff
-        let waitTime = delay;
-        const match = error.message.match(/retry in ([\d.]+)s/);
-        if (match) {
-            waitTime = Math.ceil(parseFloat(match[1]) * 1000) + 1000; // Wait requested time + 1s buffer
-        }
-
-        console.log(`Rate limit hit. Waiting ${waitTime / 1000}s before retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        return retryWithBackoff(fn, retries - 1, delay * 1.5); // Increase default delay for next time
-    }
-};
-
-export const getGenAI = () => {
-    if (!genAIInstance) {
-        if (!process.env.GEMINI_API_KEY) {
-            console.error("CRITICAL ERROR: GEMINI_API_KEY is missing from environment variables.");
-        }
-        genAIInstance = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    }
-    return genAIInstance;
-};
-
-const SYSTEM_PROMPT = `
-Role: You are an expert Content Safety Auditor for a high-traffic social media platform.
-
-Objective: Analyze the provided image or text to determine if it violates community safety policies. Your primary goal is to protect users from harmful, illegal, or graphic content.
-
-Safety Categories to Audit:
-1. VIOLENCE: Graphic injury, weapons used in a threatening manner, or promotion of self-harm.
-2. NUDITY: Explicit sexual content, exposed genitals, or highly suggestive non-consensual imagery.
-3. HATE_SPEECH: Symbols of hate groups, racist tropes, or dehumanizing imagery targeting protected groups.
-4. HARASSMENT: Doxing (revealing private info), targeted bullying, or malicious mockery of individuals.
-5. ILLEGAL: Depiction of illegal drugs, regulated goods sales, or criminal acts.
-
-Operational Rules:
-- Be strict. If content is borderline, flag it as 'REJECT'.
-- Do not provide conversational text.
-- Respond ONLY in the following JSON format.
-
-JSON Schema:
-{
-  "action": "APPROVE" | "REJECT",
-  "category": "string (the violation category or 'none')",
-  "confidence_score": 0.0 to 1.0,
-  "reasoning_brief": "One sentence explanation for the decision",
-  "delete_immediately": true | false
-}
-`;
-
-// Default safe response in case of failure
-const DEFAULT_SAFE_RESPONSE = {
+export const DEFAULT_SAFE_RESPONSE = {
     action: "APPROVE",
     category: "none",
     confidence_score: 1.0,
@@ -70,79 +14,176 @@ const DEFAULT_SAFE_RESPONSE = {
     delete_immediately: false
 };
 
-export async function checkPostSafety(postText) {
-    // gemini-1.5-flash is generally faster and cheaper for this, supports JSON mode
-    const model = getGenAI().getGenerativeModel({
-        model: "gemini-2.5-flash",
-        generationConfig: {
-            responseMimeType: "application/json"
-        },
-        systemInstruction: SYSTEM_PROMPT
-    });
-
+const extractJSON = (text) => {
     try {
-        const result = await retryWithBackoff(async () => {
-            const res = await model.generateContent(`Audit this post for safety compliance. Text content: "${postText}"`);
-            return res.response.text();
-        });
-
-        console.log("[Moderation] Text Check Result Raw:", result);
-        return JSON.parse(result);
-
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        return JSON.parse(text);
     } catch (err) {
-        console.error("[Moderation] Text Check Failed:", err.message);
-
-        try {
-            fs.appendFileSync('safety_debug.log', `[Text Check Error] ${err.message}\n${err.stack}\n`);
-        } catch (e) { }
-
-        // Fail Open
-        return DEFAULT_SAFE_RESPONSE;
+        console.error("Failed to parse JSON from:", text);
+        return null;
     }
 }
 
-export async function checkImageSafety(filePath, mimeType) {
+export const parseModerationResponse = (res) => {
     try {
-        const model = getGenAI().getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                responseMimeType: "application/json"
-            },
-            systemInstruction: SYSTEM_PROMPT
-        });
-
-        const image = fs.readFileSync(filePath).toString("base64");
-
-        const result = await retryWithBackoff(async () => {
-            const res = await model.generateContent([
-                {
-                    inlineData: {
-                        data: image,
-                        mimeType: mimeType
-                    }
-                },
-                "Audit this post for safety compliance."
-            ]);
-            return res.response.text();
-        });
-
-        // console.log("[Moderation] Image Result Raw:", result); // Debug only
-        return JSON.parse(result);
-
-    } catch (err) {
-        // FAIL OPEN STRATEGY
-        const isRateLimit = err.message.includes('429') || err.message.includes('Quota');
-        console.error(`[Moderation] Image Check Failed (${isRateLimit ? 'RATE LIMIT' : 'ERROR'}):`, err.message);
-
-        if (!isRateLimit) {
-            // Log detailed error for debugging non-transient errors
-            const logMsg = `[${new Date().toISOString()}] Image Check Failed:\nError: ${err.message}\nStack: ${err.stack}\n\n`;
-            try {
-                fs.appendFileSync('safety_debug.log', logMsg);
-            } catch (e) { }
+        if (!res || !res.response) {
+            throw new Error("Invalid response from Gemini");
         }
 
+        const response = res.response;
+
+        if (response.promptFeedback && response.promptFeedback.blockReason) {
+            return {
+                action: "REJECT",
+                category: "PROMPT_BLOCK",
+                confidence_score: 1.0,
+                reasoning_brief: `Prompt blocked: ${response.promptFeedback.blockReason}`,
+                delete_immediately: true
+            };
+        }
+
+        const candidate = response.candidates?.[0];
+        if (candidate) {
+            if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'OTHER') {
+                return {
+                    action: "REJECT",
+                    category: "PLATFORM_SAFETY_BLOCK",
+                    confidence_score: 1.0,
+                    reasoning_brief: "Content was automatically blocked by Gemini safety filters.",
+                    delete_immediately: true
+                };
+            }
+        }
+
+        const text = response.text();
+        const parsed = extractJSON(text);
+        return parsed || DEFAULT_SAFE_RESPONSE;
+    } catch (err) {
+        console.error("[Moderation] Parse Error:", err.message);
         return DEFAULT_SAFE_RESPONSE;
     }
 }
 
+/**
+ * Synchronous Behavior Check - Directly calls Gemini
+ */
+export async function checkPostBehaviorSync(userId, text, imagePaths) {
+    console.log(`[Moderation] Starting sync behavior check for user ${userId}`);
+
+    try {
+        const model = getGenAI().getGenerativeModel({
+            model: "gemini-flash-latest",
+            safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            ]
+        });
+
+        // Perform the behavior check (Optimized: ONE Multi-modal call)
+        const auditResult = await retryWithBackoff(async () => {
+            const parts = [];
+
+            // 1. Add Text Prompt
+            const fullPrompt = `${SYSTEM_PROMPT}\n\nPerform a behavior check on this content. Ignore innocent context. If safe, return APPROVE.`;
+            if (text && text.trim().length > 0) {
+                parts.push({ text: `User Caption: "${text}"` });
+            }
+            parts.push({ text: fullPrompt });
+
+            // 2. Add All Images
+            if (imagePaths && imagePaths.length > 0) {
+                for (const relPath of imagePaths) {
+                    const fullPath = path.join(process.cwd(), 'public', relPath);
+                    if (fs.existsSync(fullPath)) {
+                        const imageData = fs.readFileSync(fullPath).toString("base64");
+                        parts.push({ inlineData: { data: imageData, mimeType: "image/jpeg" } });
+                    }
+                }
+            }
+
+            // Execute Single Call
+            const res = await model.generateContent(parts);
+            const parsed = parseModerationResponse(res);
+
+            console.log("\n====== [BEHAVIOR CHECK RESPONSE] ======");
+            console.log(JSON.stringify(parsed, null, 2));
+            console.log("=======================================\n");
+
+            if (parsed.action === 'REJECT') return { action: 'REJECT', category: parsed.category, details: parsed };
+            return { action: 'APPROVE', details: parsed };
+        });
+
+        return auditResult;
+
+    } catch (err) {
+        console.error("[Sync Moderation] Failed:", err.message);
+        return { action: 'APPROVE', details: DEFAULT_SAFE_RESPONSE }; // Fail safe
+    }
+}
+
+/**
+ * Background Caption Generation - Fires asynchronous task without waiting
+ */
+export async function generateAICaptionBackground(userId, image, mimeType, prompt) {
+    console.log(`[AI Caption] Triggering background generation for user ${userId}`);
+
+    // Non-blocking execution
+    (async () => {
+
+        try {
+            const io = getIO();
+            // Socket ID no longer needed
+
+            const model = getGenAI().getGenerativeModel({
+                model: "gemini-flash-latest",
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+                ]
+            });
+
+            const result = await retryWithBackoff(async () => {
+                const parts = [];
+                if (image) parts.push({ inlineData: { data: image, mimeType: mimeType || "image/jpeg" } });
+                parts.push(prompt || "Generate a creative caption.");
+                return await model.generateContent(parts);
+            });
+
+            const caption = result.response.text().replace(/\n/g, ' ').trim();
+
+            if (io) {
+                // Emit to the user's room (works for all active tabs/devices)
+                io.to(userId).emit('caption-generated', { caption });
+                console.log(`[AI Caption] Generated and sent to user room ${userId}`);
+            } else {
+                console.log(`[AI Caption] Generated but IO instance not found.`);
+            }
+        } catch (err) {
+            console.error("[AI Caption] Generation Failed:", err.message);
+            // Optionally emit error to user
+            const io = getIO();
+            const socketId = getSocketByUserId(userId);
+            if (io && socketId) {
+                io.to(socketId).emit('caption-error', { message: "Failed to generate caption" });
+            }
+        }
+    })();
+}
+
+// Deprecated or Unused functions can be removed or kept as dummies if references exist
+export async function moderatePostBackground(postId, userId, text, imagePaths) {
+    console.warn("moderatePostBackground is deprecated and no-op");
+}
+
+export async function generateAICaption(image, mimeType, prompt) {
+    // similar logic if needed, but generateAICaptionBackground covers the main use case
+    console.warn("generateAICaption synchronous is deprecated");
+    return "Caption generation is now background-only";
+}

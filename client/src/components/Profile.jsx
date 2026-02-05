@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import API from "../api";
+import { createChat } from "../api/ChatRequests";
+import API from "../api.js";
 import Post from "./Post/Post";
+import { FiGrid, FiUser } from "react-icons/fi";
 import "./Profile.css";
 
 const Profile = () => {
@@ -28,10 +30,14 @@ const Profile = () => {
 
   // Tagging & Post View State
   const [pendingTags, setPendingTags] = useState([]);
-  // const [showTagRequests, setShowTagRequests] = useState(false); // Removed modal state
   const [selectedPost, setSelectedPost] = useState(null);
 
-  const currentUserRaw = localStorage.getItem('user');
+  // User List Modal State
+  const [activeModal, setActiveModal] = useState(null); // 'followers' or 'following'
+  const [modalUsers, setModalUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const currentUserRaw = sessionStorage.getItem('user') || localStorage.getItem('user');
   const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
   const currentUserId = currentUser?._id;
 
@@ -44,7 +50,6 @@ const Profile = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch User Profile
         const userRes = await API.get(`/user/${profileId}`);
         const userData = userRes.data.profile || userRes.data.user || userRes.data;
         setUserProfile(userData);
@@ -56,7 +61,7 @@ const Profile = () => {
 
         // Fetch User Posts (Page 1)
         setPostsPage(1);
-        const postsRes = await API.get(`/post/user/${profileId}?page=1&limit=9`); // 9 for 3x3 grid
+        const postsRes = await API.get(`/post/user/${profileId}?page=1&limit=9`);
         setPosts(postsRes.data.posts || []);
         setHasMorePosts(postsRes.data.hasMore);
 
@@ -99,7 +104,6 @@ const Profile = () => {
     }
   };
 
-  // Updated to handle FormData for image upload
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
@@ -111,7 +115,6 @@ const Profile = () => {
         formData.append("profileImage", imageFile);
       }
 
-      // Use the correct update endpoint
       const res = await API.put(`/user/update/${profileId}`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
@@ -120,9 +123,10 @@ const Profile = () => {
       setUserProfile(updatedUser);
       setIsEditing(false);
 
-      // Update local storage if it's the current user
       if (isOwnProfile) {
-        localStorage.setItem('user', JSON.stringify({ ...currentUser, ...updatedUser }));
+        const newUserData = { ...currentUser, ...updatedUser };
+        localStorage.setItem('user', JSON.stringify(newUserData));
+        sessionStorage.setItem('user', JSON.stringify(newUserData));
       }
     } catch (err) {
       console.error(err);
@@ -134,26 +138,33 @@ const Profile = () => {
     try {
       const isFollowing = userProfile.followers.some(u => (u._id || u) === currentUserId);
       const action = isFollowing ? 'unfollow' : 'follow';
-      await API.put(`/user/${profileId}/${action}`, { currentUserId });
+      await API.put(`/user/${profileId}/${action}`);
 
-      setUserProfile(prev => ({
-        ...prev,
-        followers: action === 'follow'
-          ? [...prev.followers, currentUserId]
-          : prev.followers.filter(u => (u._id || u) !== currentUserId)
-      }));
+      setUserProfile(prev => {
+        if (action === 'follow') {
+          // Optimistically add to followRequests
+          return {
+            ...prev,
+            followRequests: [...(prev.followRequests || []), { _id: currentUserId }]
+          };
+        } else {
+          // Unfollow logic
+          return {
+            ...prev,
+            followers: prev.followers.filter(u => (u._id || u) !== currentUserId),
+            followRequests: (prev.followRequests || []).filter(u => (u._id || u) !== currentUserId)
+          };
+        }
+      });
     } catch (err) {
       console.error("Follow error", err);
     }
   };
 
-  // Tag action logic moved to TagRequests.jsx
-  // const handleTagAction...
-
   const getProfileImg = (img) => {
     if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
     if (img.startsWith("http")) return img;
-    return `${API.defaults.baseURL.replace('/api', '')}${img.startsWith('/') ? '' : '/images/'}${img.split('/').pop()}`;
+    return `${API.defaults.baseURL.replace('/api', '')}/images/${img.split('/').pop()}`;
   };
 
   const getPostImg = (post) => {
@@ -163,216 +174,283 @@ const Profile = () => {
     return `${API.defaults.baseURL.replace('/api', '')}${img}`;
   };
 
+  const handleMessage = async () => {
+    try {
+      await createChat(currentUserId, userProfile._id);
+      navigate('/chat');
+    } catch (err) {
+      console.error("Chat creation failed", err);
+    }
+  };
+
+  const openModal = (type) => {
+    console.log("Opening modal:", type, userProfile);
+    setActiveModal(type);
+    setSearchTerm('');
+    if (type === 'followers') {
+      setModalUsers(userProfile.followers || []);
+    } else {
+      setModalUsers(userProfile.following || []);
+    }
+  };
+
   if (!profileId) return <div className="card">Please log in to view your profile.</div>;
-  // Removed loading check here to allow skeleton or partial render, but "Loading..." is fine for now just centered.
   if (loading) return <div style={{ textAlign: 'center', marginTop: '100px', color: '#2563eb', width: '100%' }}>Loading Profile...</div>;
   if (!userProfile) return <div className="card error">User not found</div>;
 
   return (
     <div className="profile-container">
-      {/* Cover Image Section */}
-      <div className="profile-cover">
-        <div className="back-arrow" onClick={() => navigate(-1)}>
-          &#8592;
+
+
+      <div className="profile-header">
+        {/* Left: Avatar */}
+        <div className="profile-avatar-section">
+          <div className="avatar-container">
+            <img
+              className="profile-avatar"
+              src={getProfileImg(userProfile.profilePicture)}
+              alt="Profile"
+              onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}
+            />
+          </div>
+        </div>
+
+        {/* Right: Info */}
+        <div className="profile-info-section">
+          <div className="info-top-row">
+            <h2 className="username-text">{userProfile.username}</h2>
+            {isOwnProfile && <div className="settings-icon" onClick={() => navigate('/settings')} title="Settings">⚙️</div>}
+          </div>
+
+          <div className="fullname-row" style={{ fontWeight: '600', marginBottom: '4px' }}>
+            {userProfile.firstname} {userProfile.lastname}
+          </div>
+
+          <div className="bio-row" style={{ marginBottom: '16px' }}>
+            <div className="bio-text">{userProfile.bio || "No bio yet."}</div>
+          </div>
+
+          <div className="info-stats-row">
+            <div className="stat-item"><strong>{userProfile.postsCount || posts.length}</strong> posts</div>
+            <div className="stat-item" onClick={() => openModal('followers')}><strong>{userProfile.followers?.length || 0}</strong> followers</div>
+            <div className="stat-item" onClick={() => openModal('following')}><strong>{userProfile.following?.length || 0}</strong> following</div>
+          </div>
         </div>
       </div>
 
-      {/* Profile Card Overlay */}
-      <div className="profile-card">
-        <div className="profile-avatar-wrapper">
-          <img
-            className="profile-avatar"
-            src={getProfileImg(userProfile.profilePicture)}
-            alt="Profile"
-            onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}
-          />
-        </div>
-
-        <div className="profile-name">
-          {userProfile.firstname} {userProfile.lastname}
-        </div>
-        <div style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '5px' }}>@{userProfile.username}</div>
-        <div className="profile-profession">
-          {userProfile.bio || "No bio yet"}
-        </div>
-
-        {/* Stats */}
-        <div className="profile-stats">
-          <div className="stat-box">
-            <span className="stat-number">{userProfile.postsCount || posts.length}</span>
-            <span className="stat-label">Posts</span>
-          </div>
-          <Link to={`/followers/${userProfile._id}`} className="stat-box">
-            <span className="stat-number">{userProfile.followers?.length || 0}</span>
-            <span className="stat-label">Followers</span>
-          </Link>
-          <Link to={`/followers/${userProfile._id}`} className="stat-box">
-            <span className="stat-number">{userProfile.following?.length || 0}</span>
-            <span className="stat-label">Following</span>
-          </Link>
-        </div>
-
-        {/* Actions */}
-        <div className="profile-actions">
-          {isOwnProfile ? (
-            <>
-              <button className="btn-blue-soft" onClick={() => setIsEditing(!isEditing)}>
-                Edit Profile
-              </button>
-              <button className="btn-blue-soft" onClick={() => navigate('/tag-requests')}>
-                Tag Requests {pendingTags.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '10px' }}>{pendingTags.length}</span>}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className={`btn-blue-primary ${userProfile.followers?.some((u) => (u._id || u) === currentUserId)
-                  ? "following"
-                  : ""
-                  }`}
-                onClick={handleFollow}
-                style={{
-                  backgroundColor:
-                    userProfile.followers?.some(
-                      (u) => (u._id || u) === currentUserId
-                    )
-                      ? "#fee2e2" // Light red for unfollow
-                      : "",
-                  color: userProfile.followers?.some(
-                    (u) => (u._id || u) === currentUserId
-                  ) ? "#ef4444" : "white", // Red text for unfollow
-                  border: userProfile.followers?.some(
-                    (u) => (u._id || u) === currentUserId
-                  ) ? "1px solid #ef4444" : "none"
-                }}
-              >
-                {userProfile.followers?.some(
-                  (u) => (u._id || u) === currentUserId
-                )
-                  ? "Unfollow"
-                  : userProfile.following?.some(
-                    (u) => (u._id || u) === currentUserId
-                  )
+      <div className="profile-actions-row">
+        {isOwnProfile ? (
+          <>
+            <button className="action-btn" onClick={() => setIsEditing(true)}>Edit Profile</button>
+            <button className="action-btn" onClick={() => navigate('/archive')}>View archive</button>
+          </>
+        ) : (
+          <>
+            <button
+              className={`action-btn primary ${userProfile.followers?.some((u) => (u._id || u) === currentUserId) ? "following" : ""}`}
+              onClick={handleFollow}
+            >
+              {userProfile.followers?.some((u) => (u._id || u) === currentUserId)
+                ? "Unfollow"
+                : userProfile.followRequests?.some((u) => (u._id || u) === currentUserId)
+                  ? "Requested"
+                  : userProfile.following?.some((u) => (u._id || u) === currentUserId)
                     ? "Follow Back"
                     : "Follow"}
-              </button>
-              <button className="btn-blue-soft">Message</button>
-            </>
-          )}
+            </button>
+            <button className="action-btn" onClick={handleMessage}>Message</button>
+          </>
+        )}
+      </div>
+
+
+
+      {/* Highlights Section */}
+      <div className="highlights-section">
+        {
+          userProfile.highlights && userProfile.highlights.map((highlight, index) => (
+            <div className="highlight-item" key={index}>
+              <div className="highlight-circle">
+                <img src={highlight.cover} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              </div>
+              <span className="highlight-label">{highlight.title}</span>
+            </div>
+          ))
+        }
+
+        {
+          isOwnProfile && (
+            <div className="highlight-item">
+              <div className="highlight-circle add-new">+</div>
+              <span className="highlight-label">New</span>
+            </div>
+          )
+        }
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="profile-tabs">
+        <div className="tab-item active" title="Posts">
+          <span className="tab-icon"><FiGrid size={24} /></span>
+        </div>
+        <div className="tab-item" title="Tagged">
+          <span className="tab-icon"><FiUser size={24} /></span>
         </div>
       </div>
 
-      {/* Edit Mode Overlay */}
-      {
-        isEditing && (
-          <div className="edit-modal">
-            <form onSubmit={handleUpdateProfile}>
-              <h3 style={{ marginBottom: '15px', color: '#1e293b' }}>Edit Profile</h3>
-
-              <div className="form-group" style={{ textAlign: 'center' }}>
-                <div style={{ width: '80px', height: '80px', margin: '0 auto 10px', borderRadius: '50%', overflow: 'hidden', border: '2px solid #ddd' }}>
-                  <img
-                    src={previewImage || getProfileImg(userProfile.profilePicture)}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    alt="Preview"
-                  />
+      {/* Photos Grid */}
+      <div className="photos-grid">
+        {posts.map(post => {
+          const imgUrl = getPostImg(post);
+          return (
+            <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  alt="post"
+                  className="photo-img"
+                  onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=Error"; }}
+                />
+              ) : (
+                <div className="text-post-fallback">
+                  {post.caption?.substring(0, 30)}...
                 </div>
-                <label className="btn-blue-soft" style={{ display: 'inline-block', fontSize: '0.8rem', padding: '5px 10px', width: 'auto' }}>
-                  Change Photo
-                  <input type="file" onChange={handleImageChange} style={{ display: 'none' }} />
-                </label>
-              </div>
-
-              <div className="form-group">
-                <label>First Name</label>
-                <input className="form-input" value={editData.firstname} onChange={e => setEditData({ ...editData, firstname: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Last Name</label>
-                <input className="form-input" value={editData.lastname} onChange={e => setEditData({ ...editData, lastname: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Bio</label>
-                <textarea className="form-input" rows={3} value={editData.bio} onChange={e => setEditData({ ...editData, bio: e.target.value })} />
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn-blue-soft" onClick={() => setIsEditing(false)}>Cancel</button>
-                <button type="submit" className="btn-blue-primary">Save</button>
-              </div>
-            </form>
-          </div>
-        )
-      }
-
-      {/* Photos Section */}
-      <div className="section-container">
-        <div className="section-header">
-          <span className="section-title">Photos</span>
-        </div>
-
-        <div className="photos-grid">
-          {posts.map(post => {
-            const imgUrl = getPostImg(post);
-            return (
-              <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
-                {imgUrl ? (
-                  <img
-                    src={imgUrl}
-                    alt="post"
-                    className="photo-img"
-                    onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=Error"; }}
-                  />
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', fontSize: '0.8rem', padding: '5px', textAlign: 'center' }}>
-                    {post.caption?.substring(0, 30)}...
-                  </div>
-                )}
-              </div>
-            )
-          })}
-          {posts.length === 0 && (
-            <div className="empty-state">
-              No photos yet 📷
+              )}
             </div>
-          )}
-        </div>
+          )
+        })}
+        {posts.length === 0 && (
+          <div className="empty-state">
+            <div className="camera-icon">📷</div>
+            <h3>Share photos</h3>
+            <p>When you share photos, they will appear on your profile.</p>
+            {isOwnProfile && <button className="action-btn text-blue" onClick={() => navigate('../create-post')}>Share your first photo</button>}
+          </div>
+        )}
+      </div>
 
-        {hasMorePosts && posts.length > 0 && (
+      {
+        hasMorePosts && posts.length > 0 && (
           <div className="load-more-container">
             <button className="btn-load-more" onClick={loadMorePosts} disabled={loadingPosts}>
               {loadingPosts ? 'Loading...' : 'Load More'}
             </button>
           </div>
-        )}
-      </div>
+        )
+      }
 
 
-      {/* Tag Requests Modal Removed - Moved to dedicated page */}
 
-      {/* Full Post Modal */}
+      {/* User List Modal (Followers/Following) */}
+      {activeModal && (
+        <div className="edit-overlay" onClick={() => setActiveModal(null)} style={{ zIndex: 1100 }}>
+          <div className="user-list-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span>{activeModal === 'followers' ? 'Followers' : 'Following'}</span>
+              <div className="close-modal" onClick={() => setActiveModal(null)}>&times;</div>
+            </div>
+            <div className="modal-search-bar">
+              <input
+                type="text"
+                className="modal-search-input"
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="user-list-content">
+              {modalUsers.filter(u =>
+                (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (u.firstname && u.firstname.toLowerCase().includes(searchTerm.toLowerCase()))
+              ).length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  {activeModal === 'followers' ? 'No followers found.' : 'No following found.'}
+                </div>
+              ) : (
+                modalUsers.filter(u =>
+                  (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                  (u.firstname && u.firstname.toLowerCase().includes(searchTerm.toLowerCase()))
+                ).map(user => (
+                  <div key={user._id} className="user-list-item" onClick={() => { navigate(`/profile/${user._id}`); setActiveModal(null); }}>
+                    <img
+                      src={getProfileImg(user.profilePicture)}
+                      alt={user.username}
+                      className="user-list-avatar"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}
+                    />
+                    <div className="user-list-info">
+                      <div className="user-list-username">{user.username}</div>
+                      <div className="user-list-fullname">{user.firstname} {user.lastname}</div>
+                    </div>
+                    <button className="list-action-btn">
+                      {activeModal === 'following' ? 'Following' : 'Remove'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Mode Overlay - Kept Functional */}
       {
-        selectedPost && (
-          <div className="edit-modal" style={{ zIndex: 1000 }}>
-            <div style={{ width: '100%', maxWidth: '600px', maxHeight: '95vh', overflowY: 'auto', background: 'transparent' }}>
-              <div style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setSelectedPost(null)}
-                  style={{
-                    position: 'absolute', top: '10px', right: '10px', zIndex: 10,
-                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
-                    borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer'
-                  }}
-                >
-                  &times;
-                </button>
-                <Post post={selectedPost} />
-              </div>
+        isEditing && (
+          <div className="edit-overlay">
+            <div className="edit-modal">
+              <form onSubmit={handleUpdateProfile}>
+                <h3 style={{ marginBottom: '15px' }}>Edit Profile</h3>
+
+                <div className="form-group" style={{ textAlign: 'center' }}>
+                  <div className="edit-avatar-preview">
+                    <img
+                      src={previewImage || getProfileImg(userProfile.profilePicture)}
+                      alt="Preview"
+                    />
+                  </div>
+                  <label className="change-photo-btn">
+                    Change Photo
+                    <input type="file" onChange={handleImageChange} style={{ display: 'none' }} />
+                  </label>
+                </div>
+
+                <div className="form-group">
+                  <label>First Name</label>
+                  <input className="form-input" value={editData.firstname} onChange={e => setEditData({ ...editData, firstname: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Last Name</label>
+                  <input className="form-input" value={editData.lastname} onChange={e => setEditData({ ...editData, lastname: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Bio</label>
+                  <textarea className="form-input" rows={3} value={editData.bio} onChange={e => setEditData({ ...editData, bio: e.target.value })} />
+                </div>
+                <div className="form-actions">
+                  <button type="button" className="action-btn" onClick={() => setIsEditing(false)}>Cancel</button>
+                  <button type="submit" className="action-btn primary">Save</button>
+                </div>
+              </form>
             </div>
           </div>
         )
       }
-    </div >
+
+      {/* Full Post Modal */}
+      {
+        selectedPost && (
+          <div className="edit-overlay" style={{ zIndex: 1000 }}>
+            <div className="modal-content-wrapper">
+              <button className="close-modal-btn" onClick={() => setSelectedPost(null)}>&times;</button>
+              <Post post={selectedPost} />
+            </div>
+          </div>
+        )
+      }
+    </div>
   );
 };
 
 export default Profile;
+
+

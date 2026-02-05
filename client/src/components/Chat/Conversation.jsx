@@ -9,7 +9,8 @@ const Conversation = ({ data, currentUserId, online }) => {
         const getUserData = async () => {
             try {
                 const { data } = await getUser(userId);
-                setUserData(data);
+                const user = data.user || data.profile || data;
+                setUserData(user);
             } catch (error) {
                 console.log(error);
             }
@@ -29,7 +30,7 @@ const Conversation = ({ data, currentUserId, online }) => {
                         style={{ width: "50px", height: "50px", borderRadius: "50%" }}
                     />
                     <div className="name" style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column' }}>
-                        <span>{userData?.firstname} {userData?.lastname}</span>
+                        <span>{userData?.firstname || userData?.username} {userData?.lastname || ""}</span>
                         <span style={{ color: online ? "#51e200" : "" }}>{online ? "Online" : "Offline"}</span>
                     </div>
                 </div>

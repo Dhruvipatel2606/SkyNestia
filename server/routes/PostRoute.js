@@ -2,11 +2,12 @@ import express from 'express';
 import { createPost, deletePost, getPost, getFeed, likePost, updatePost, getPendingTagPosts, toggleTagStatus, getUserPosts, upload, generateCaption, getSavedPosts, toggleSavePost } from '../controllers/PostController.js';
 
 import authMiddleware from '../middleware/authMiddleware.js';
+import { aiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-router.post('/generate-caption', authMiddleware, generateCaption);
-router.post('/', authMiddleware, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'music', maxCount: 1 }]), createPost);
+router.post('/generate-caption', authMiddleware, aiLimiter, generateCaption);
+router.post('/', authMiddleware, aiLimiter, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'music', maxCount: 1 }]), createPost);
 
 router.get('/saved', authMiddleware, getSavedPosts); // Must be before /:id
 router.put('/:id/save', authMiddleware, toggleSavePost);

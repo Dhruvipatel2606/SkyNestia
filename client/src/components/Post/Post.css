@@ -34,8 +34,6 @@
     width: 100%;
     max-height: 600px;
     /* Taller for Instagram feel */
-    object-fit: contain;
-    /* Or cover depending on preference, cover feels more immersive */
     object-fit: cover;
     display: block;
 }
@@ -48,7 +46,6 @@
     padding: 10px 4px 10px 0;
     /* Minimized padding */
     margin-bottom: 0;
-    /* Remove old margin */
 }
 
 .post-header-user {
@@ -81,7 +78,6 @@
 /* Dark mode override for avatar ring border */
 body.dark-mode .post-avatar {
     border-color: #000;
-    /* Or generic bg color */
 }
 
 .post-info-text {
@@ -164,7 +160,6 @@ body.dark-mode .option-item:hover {
 
 body.dark-mode .option-item.delete {
     color: #ef4444;
-    /* Keep red in dark mode */
 }
 
 
@@ -176,10 +171,8 @@ body.dark-mode .option-item.delete {
     background: black;
     /* Default backdrop for images */
     position: relative;
-    /* Ensure relative for tag overlay */
 }
 
-/* Adjust if card padding changes in index.css */
 @media (max-width: 600px) {
     .post-content-visual {
         margin: 4px -1rem 0;
@@ -192,8 +185,8 @@ body.dark-mode .option-item.delete {
     background: #f1f5f9;
     font-size: 0.8rem;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
 }
 
 /* Tagged Users Handling */
@@ -231,9 +224,7 @@ body.dark-mode .option-item.delete {
     align-items: center;
     justify-content: center;
     z-index: 9;
-    /* Below button */
     pointer-events: none;
-    /* Let clicks pass through unless on specific items */
 }
 
 .tags-list-bubble {
@@ -245,7 +236,6 @@ body.dark-mode .option-item.delete {
     gap: 8px;
     max-width: 80%;
     pointer-events: auto;
-    /* Re-enable clicks */
     animation: fadeIn 0.2s ease;
 }
 
@@ -268,7 +258,6 @@ body.dark-mode .option-item.delete {
     display: flex;
     justify-content: space-between;
     padding: 12px 0 8px;
-    /* Vertical padding */
 }
 
 .actions-left,
@@ -286,7 +275,6 @@ body.dark-mode .option-item.delete {
     display: flex;
     color: var(--text-main);
     font-size: 1.65rem;
-    /* Large icons */
     transition: transform 0.1s;
 }
 
@@ -296,11 +284,9 @@ body.dark-mode .option-item.delete {
 
 .action-icon svg {
     stroke-width: 1.5;
-    /* Thin stroke */
 }
 
 .liked-icon {
-    /* Color handled inline or via class */
     animation: heartPop 0.3s ease-out;
 }
 
@@ -360,7 +346,7 @@ body.dark-mode .option-item.delete {
 .comments-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     margin-bottom: 10px;
 }
 
@@ -377,7 +363,6 @@ body.dark-mode .option-item.delete {
 .comment-form {
     display: flex;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
-    /* Faint separation */
     padding-top: 15px;
     align-items: center;
 }
@@ -413,7 +398,6 @@ body.dark-mode .option-item.delete {
 /* Dark Mode Overrides */
 body.dark-mode .post-actions-bar .action-icon {
     color: white;
-    /* Ensure icons are white in dark mode */
 }
 
 body.dark-mode .more-btn,
@@ -429,4 +413,16 @@ body.dark-mode .comment-form input {
 
 body.dark-mode .comment-form {
     border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

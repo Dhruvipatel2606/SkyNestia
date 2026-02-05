@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { generateKeyPair, exportKey } from '../utils/Encryption';
 
 export default function Register() {
     const [firstname, setFirstname] = useState('')
@@ -38,11 +39,28 @@ export default function Register() {
         setIsLoading(true)
 
         try {
+            // Generate E2EE Keys
+            const keyPair = await generateKeyPair();
+            const pubJwk = await exportKey(keyPair.publicKey);
+            const privJwk = await exportKey(keyPair.privateKey);
+
+            // Store keys locally immediately (even before success, cleanup if fail)
+            const keysToStore = { publicKey: JSON.parse(pubJwk), privateKey: JSON.parse(privJwk) };
+            localStorage.setItem('e2ee_keys', JSON.stringify(keysToStore));
+
             const res = await fetch('/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email: emailTrim, password, firstname, lastname })
+                body: JSON.stringify({
+                    username,
+                    email: emailTrim,
+                    password,
+                    firstname,
+                    lastname,
+                    publicKey: pubJwk // Send Public Key to Server
+                })
             })
+            // ... rest of handler ...
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}))
                 setError(data.message || 'Registration failed')

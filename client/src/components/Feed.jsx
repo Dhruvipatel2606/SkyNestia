@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import API from "../api";
+import API from "../api.js";
 import { Link } from "react-router-dom";
 import Post from "./Post/Post";
 import SuggestedUsers from "./SuggestedUsers";
@@ -52,7 +52,6 @@ const Feed = () => {
         const res = await API.get(`/feed?page=${page}&limit=5`);
 
         setPosts(prevPosts => {
-          // Filter out duplicates just in case
           const newPosts = res.data.feed.filter(p => !prevPosts.some(existing => existing._id === p._id));
           return [...prevPosts, ...newPosts];
         });
@@ -79,8 +78,6 @@ const Feed = () => {
 
   if (error && page === 1) return <div className="card error-card"><p>Error: {error}</p></div>;
 
-
-
   return (
     <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <div className="feed-container">
@@ -89,7 +86,7 @@ const Feed = () => {
             {currentUser && currentUser._id && (
               <Link to={`/profile/${currentUser._id}`}>
                 <img
-                  src={currentUser.profilePicture ? (currentUser.profilePicture.startsWith('http') ? currentUser.profilePicture : `http://localhost:5000/images/${currentUser.profilePicture.split('/').pop()}`) : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                  src={currentUser.profilePicture ? (currentUser.profilePicture.startsWith('http') ? currentUser.profilePicture : `${API.defaults.baseURL.replace('/api', '')}/images/${currentUser.profilePicture.split('/').pop()}`) : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                   alt="Profile"
                   style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #ddd' }}
                   onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}
@@ -134,7 +131,7 @@ const Feed = () => {
               {tagRequests.map(req => (
                 <div key={req._id} style={{ borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
-                    <img src={req.userId.profilePicture ? (req.userId.profilePicture.startsWith('http') ? req.userId.profilePicture : `http://localhost:5000/images/${req.userId.profilePicture.split('/').pop()}`) : "https://via.placeholder.com/30"}
+                    <img src={req.userId.profilePicture ? (req.userId.profilePicture.startsWith('http') ? req.userId.profilePicture : `${API.defaults.baseURL.replace('/api', '')}/images/${req.userId.profilePicture.split('/').pop()}`) : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                       alt="pic" style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
                     <strong style={{ fontSize: '0.85rem' }}>{req.userId.username}</strong>
                   </div>

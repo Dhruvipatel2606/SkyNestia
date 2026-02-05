@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Conversation from "../../Conversation";
-import API from "../../../../api"; // Assuming api import
+import API from "../../../../api.js"; // Assuming api import
 import { FiPlus, FiX } from "react-icons/fi";
 import { createChat } from "../../../../api/ChatRequests"; // Adjust import path if needed
 

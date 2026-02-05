@@ -1,61 +1,79 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import "./Chat.css";
 import ChatLayout from "./ChatLayout/ChatLayout";
 import { userChats } from "../../api/ChatRequests";
 import { generateKeyPair, exportKey } from "../../utils/Encryption";
 import { updateUser } from "../../api/UserRequests";
-import { io } from "socket.io-client";
+import { useSocket } from "../../SocketContext";
 
 const Chat = () => {
-    const socket = useRef();
+    // 1. Use global socket instead of local ref
+    const socket = useSocket();
+
+    // ... rest of state
     const [chats, setChats] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [currentChat, setCurrentChat] = useState(null);
     const [sendMessage, setSendMessage] = useState(null);
     const [receiveMessage, setReceiveMessage] = useState(null);
 
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = useMemo(() => {
+        try {
+            const sessionUser = sessionStorage.getItem('user');
+            const localUser = localStorage.getItem('user');
+            return JSON.parse(sessionUser || localUser);
+        } catch (e) { return null; }
+    }, []);
 
-    // Socket Connection
+    const userId = user?._id;
+
+    // 2. Setup socket listeners using the global socket
     useEffect(() => {
-        socket.current = io("http://localhost:5000");
-        socket.current.emit("new-user-add", user?._id);
-        socket.current.on("get-users", (users) => {
+        if (!socket || !userId) return;
+
+        // Register user
+        socket.emit("new-user-add", userId);
+
+        // Listen for online users
+        socket.on("get-users", (users) => {
             setOnlineUsers(users);
         });
-        return () => { socket.current.disconnect(); }
-    }, [user]);
 
-    // Send Message
-    useEffect(() => {
-        if (sendMessage !== null) {
-            socket.current.emit("send-message", sendMessage);
-        }
-    }, [sendMessage]);
-
-    // Receive Message
-    useEffect(() => {
-        socket.current.on("receive-message", (data) => {
+        // Listen for incoming messages
+        socket.on("receive-message", (data) => {
             setReceiveMessage(data);
         });
-    }, []);
+
+        return () => {
+            // Clean up specific listeners (do not disconnect global socket)
+            socket.off("get-users");
+            socket.off("receive-message");
+        };
+    }, [socket, userId]);
+
+    // 3. Send Message
+    useEffect(() => {
+        if (sendMessage !== null && socket) {
+            socket.emit("send-message", sendMessage);
+        }
+    }, [sendMessage, socket]);
 
     // Get Chats
     useEffect(() => {
         const getChats = async () => {
             try {
-                const { data } = await userChats(user?._id);
+                const { data } = await userChats(userId);
                 setChats(data);
             } catch (error) {
                 console.log(error);
             }
         };
-        if (user?._id) getChats();
-    }, [user]);
+        if (userId) getChats();
+    }, [userId]);
 
     // E2EE Key Setup
     useEffect(() => {
-        if (!user) return;
+        if (!user || !userId) return;
         const setupKeys = async () => {
             let keys = localStorage.getItem('e2ee_keys');
             if (!keys) {
@@ -67,28 +85,20 @@ const Chat = () => {
                 const keysToStore = { publicKey: JSON.parse(pubJwk), privateKey: JSON.parse(privJwk) };
                 localStorage.setItem('e2ee_keys', JSON.stringify(keysToStore));
 
-                // Update Server
-                await updateUser(user._id, { publicKey: pubJwk, _id: user._id });
-
-                // Update local storage user
-                const updatedUser = { ...user, publicKey: pubJwk };
-                localStorage.setItem('user', JSON.stringify(updatedUser));
+                await updateUser(userId, { publicKey: pubJwk, _id: userId });
             } else {
                 if (!user.publicKey) {
                     console.log("Syncing Public Key to Server...");
                     const { publicKey } = JSON.parse(keys);
                     const pubJwk = JSON.stringify(publicKey);
-                    await updateUser(user._id, { publicKey: pubJwk, _id: user._id });
-
-                    const updatedUser = { ...user, publicKey: pubJwk };
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    await updateUser(userId, { publicKey: pubJwk, _id: userId });
                 }
             }
         }
         setupKeys();
-    }, [user]);
+    }, [userId, user]);
 
-    if (!user) return <div className="Chat" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Please Login to Chat</div>;
+    if (!user) return <div className="Chat" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Please Login to Chat</div>;
 
     return (
         <div className="Chat">

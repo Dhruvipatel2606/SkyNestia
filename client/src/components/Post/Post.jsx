@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import API from '../../api';
+import API from '../../api.js';
 import './Post.css';
 import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal, FiUser } from 'react-icons/fi';
+import { FaGlobe, FaUserFriends } from 'react-icons/fa';
 
 const Post = ({ post }) => {
     const navigate = useNavigate();
-    const [likes, setLikes] = useState(post.likes.length);
-    const [isLiked, setIsLiked] = useState(false); // We need to check if current user liked it
+    const [likes, setLikes] = useState(post.likes?.length || 0);
+    const [isLiked, setIsLiked] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
@@ -30,9 +31,8 @@ const Post = ({ post }) => {
         return currentUser.savedPosts.some(p => (p._id || p) === post._id);
     });
 
-
     useEffect(() => {
-        if (post.likes.includes(currentUserId)) {
+        if (post.likes?.includes(currentUserId)) {
             setIsLiked(true);
         }
     }, [post.likes, currentUserId]);
@@ -56,15 +56,7 @@ const Post = ({ post }) => {
         if (window.confirm("Are you sure you want to delete this post?")) {
             try {
                 await API.delete(`/post/${post._id}`);
-                // If we are on the dedicated post page, go back to profile. 
-                // If we are on feed/profile, we might want to just reload or update state, 
-                // but user explicitly asked to "go to profile page directly".
                 navigate('/profile');
-                // Optionally reload if we are already on profile to refresh list? 
-                // Since navigate to same route might not refresh, we might need window.location.href = '/profile' or similar 
-                // if we want a full refresh, but navigate is smoother. 
-                // However, without state management update, the post might still show if we just navigate.
-                // Let's use window.location.href = '/profile' to ensure a re-fetch of the profile posts.
                 window.location.href = '/profile';
             } catch (err) {
                 console.error("Delete error", err);
@@ -94,7 +86,7 @@ const Post = ({ post }) => {
                 await navigator.share({
                     title: 'SkyNestia Post',
                     text: post.caption,
-                    url: window.location.href, // Or specific post URL if you have routed post details
+                    url: window.location.href,
                 });
             } catch (error) {
                 console.log('Error sharing:', error);
@@ -103,7 +95,6 @@ const Post = ({ post }) => {
             alert('Sharing is not supported on this browser');
         }
     };
-
 
     const submitComment = async (e) => {
         e.preventDefault();
@@ -124,7 +115,7 @@ const Post = ({ post }) => {
 
     const getUserName = (user) => {
         if (!user) return 'Unknown User';
-        return user.username || 'Unknown User'; // Prefer username for this style
+        return user.username || 'Unknown User';
     };
 
     const getProfilePic = (user) => {
@@ -171,13 +162,29 @@ const Post = ({ post }) => {
         <div className="post-card">
             {/* Header */}
             <div className="post-header">
-                <Link to={`/profile/${post.userId._id}`} className="post-header-user">
+                <Link to={`/profile/${post.userId?._id}`} className="post-header-user">
                     <div className="story-ring">
                         <img className="post-avatar" src={getProfilePic(post.userId)} alt="avatar" />
                     </div>
                     <div className="post-info-text">
                         <span className="post-username">{getUserName(post.userId)}</span>
-                        <span className="post-time">• {formatTime(post.createdAt)}</span>
+                        <span className="post-time" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            • {formatTime(post.createdAt)} •
+                            {post.visibility === 'followers' ? (
+                                <FaUserFriends size={12} title="Followers Only" style={{ color: '#65676b' }} />
+                            ) : (
+                                <FaGlobe size={12} title="Public" style={{ color: '#65676b' }} />
+                            )}
+                        </span>
+                        {post.isModerated && (
+                            <span
+                                className="behavior-badge"
+                                title={`Behavior Check: ${post.behaviorAudit?.reasoning || 'Safe'}`}
+                                style={{ marginLeft: '4px', cursor: 'help', color: '#0095f6', fontSize: '12px' }}
+                            >
+                                🛡️
+                            </span>
+                        )}
                     </div>
                 </Link>
                 <div className="post-options" style={{ position: 'relative' }}>
@@ -193,7 +200,6 @@ const Post = ({ post }) => {
                 </div>
             </div>
 
-            {/* Content (Image) */}
             {/* Content (Image) */}
             <div className="post-content-visual" style={{ position: 'relative' }}>
                 {(post.images && post.images.length > 0) ? (
@@ -234,15 +240,17 @@ const Post = ({ post }) => {
                         )}
                     </>
                 )}
-
-                {/* Music Player */}
-                {post.music && (
-                    <div className="post-music-indicator">
-                        <span>🎵 Music</span>
-                        <audio controls src={post.music.startsWith('http') ? post.music : `${API.defaults.baseURL.replace('/api', '')}${post.music}`} />
-                    </div>
-                )}
             </div>
+
+            {/* Music Player */}
+            {post.music && (
+                <div className="post-music-indicator">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span>🎵 Music</span>
+                    </div>
+                    <audio controls src={post.music.startsWith('http') ? post.music : `${API.defaults.baseURL.replace('/api', '')}${post.music}`} style={{ width: '100%' }} />
+                </div>
+            )}
 
             {/* Action Bar */}
             <div className="post-actions-bar">

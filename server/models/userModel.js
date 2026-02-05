@@ -18,13 +18,16 @@ const userSchema = new Schema({
         required: true,
         trim: true
     },
-    avatar: {
-        type: String,
-    },
-    FullName: {
+    firstname: {
         type: String,
         required: false,
-        trim: true
+    },
+    lastname: {
+        type: String,
+        required: false,
+    },
+    profilePicture: {
+        type: String,
     },
     isAdmin: {
         type: Boolean,
@@ -34,14 +37,9 @@ const userSchema = new Schema({
         type: String,
         default: "",
     },
-    name: {
-        type: String,
-        required: false,
-        trim: true
-    },
-    profilePicture: String,
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
+    followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }], // Pending follow requests
     publicKey: {
         type: String, // Store client-side generated public key
         required: false,

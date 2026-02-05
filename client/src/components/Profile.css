@@ -1,234 +1,309 @@
 :root {
-    --blue-primary: #0A192F;
-    /* Navy Blue */
-    --blue-hover: #112240;
-    /* Lighter Navy */
-    --blue-light: #F8FAFC;
-    /* White/Grey BG */
-    --blue-soft: #E0F2FE;
-    /* Sky Blue Tint */
-    --text-dark: #0F172A;
-    --text-muted: #475569;
-    --card-shadow: 0 10px 25px -5px rgba(10, 25, 47, 0.1), 0 8px 10px -6px rgba(10, 25, 47, 0.05);
+    --bg-color: #FAFAFA;
+    --text-primary: #262626;
+    --text-secondary: #8E8E8E;
+    --button-bg: #EFEFEF;
+    --button-bg-hover: #DBDBDB;
+    --primary-blue: #0095F6;
+    --primary-blue-hover: #1877F2;
+    --border-color: #DBDBDB;
+    --link-color: #00376B;
+}
+
+body.dark-mode {
+    --bg-color: #000000;
+    --text-primary: #F5F5F5;
+    --text-secondary: #A8A8A8;
+    --button-bg: #363636;
+    --button-bg-hover: #505050;
+    --border-color: #262626;
 }
 
 .profile-container {
-    background-color: var(--blue-light);
-    min-height: 100vh;
-    padding-bottom: 2rem;
-    font-family: 'Inter', sans-serif;
-    width: 100%;
-    box-sizing: border-box;
-    transition: background-color 0.3s ease;
-}
-
-/* Cover Image */
-.profile-cover {
-    height: 220px;
-    width: 100%;
-    background: linear-gradient(135deg, #0A192F 0%, #064360 100%);
-    position: relative;
-    border-bottom-left-radius: 40px;
-    border-bottom-right-radius: 40px;
-    border-top-left-radius: 40px;
-    border-top-right-radius: 40px;
-    transition: background 0.3s ease;
-}
-
-.back-arrow {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-
-.menu-dots {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-
-/* Profile Card (Floating) */
-.profile-card {
-    background: white;
-    width: 90%;
-    max-width: 600px;
-    margin: -80px auto 0;
-    /* overlaps cover */
-    border-radius: 24px;
-    padding: 0 20px 25px;
-    box-shadow: var(--card-shadow);
-    text-align: center;
-    position: relative;
-    z-index: 10;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.profile-avatar-wrapper {
-    position: relative;
-    width: 110px;
-    height: 110px;
+    max-width: 935px;
     margin: 0 auto;
-    top: -55px;
-    /* Pull up to overlap top edge */
-    margin-bottom: -40px;
-    /* Adjust spacing flow */
+    padding: 30px 20px 0;
+    background-color: var(--bg-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+/* Header Section */
+.profile-header {
+    display: flex;
+    flex-direction: row;
+    /* Horizontal */
+    margin-bottom: 20px;
+    /* Reduced bottom margin as buttons come next */
+    align-items: center;
+    /* Center vertically */
+}
+
+.profile-avatar-section {
+    flex-grow: 1;
+    margin-right: 30px;
+    display: flex;
+    justify-content: center;
+    max-width: 290px;
+}
+
+.avatar-container {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
 }
 
 .profile-avatar {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
     object-fit: cover;
-    border: 5px solid white;
-    background-color: white;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
-.profile-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-dark);
-    margin-bottom: 0.2rem;
-    margin-top: 10px;
-}
-
-.profile-profession {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-}
-
-/* Stats Row */
-.profile-stats {
+.profile-info-section {
+    flex-grow: 2;
     display: flex;
-    justify-content: space-between;
-    max-width: 350px;
-    margin: 0 auto 1.5rem;
-    padding: 0 10px;
+    flex-direction: column;
+    padding-top: 0;
 }
 
-.stat-box {
+/* Top Row: Username + Buttons */
+.info-top-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
+    gap: 20px;
+}
+
+.username-text {
+    font-size: 20px;
+    /* Correct size */
+    font-weight: 400;
+    margin: 0;
+    color: var(--text-primary);
+    line-height: 25px;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-btn {
+    background-color: var(--button-bg);
+    color: var(--text-primary);
+    width: 50%;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.action-btn:hover {
+    background-color: var(--button-bg-hover);
+}
+
+.settings-icon {
+    margin-left: 5px;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+/* Middle Row: Stats */
+.info-stats-row {
+    display: flex;
+    margin-bottom: 20px;
+    font-size: 16px;
+    gap: 40px;
+    list-style: none;
+    /* In case it was ul */
+}
+
+.stat-item {
+    color: var(--text-primary);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.stat-item strong {
+    font-weight: 600;
+}
+
+/* Bottom Row: Bio */
+.info-bio-row {
+    font-size: 14px;
+    line-height: 24px;
+}
+
+.fullname {
+    font-weight: 600;
+}
+
+.bio-text {
+    white-space: pre-wrap;
+    max-width: 400px;
+    word-wrap: break-word;
+}
+
+/* Highlights */
+.highlights-section {
+    display: flex;
+    gap: 15px;
+    /* Tighter gap */
+    margin-bottom: 44px;
+    overflow-x: auto;
+    padding-bottom: 0px;
+    padding-left: 50px;
+    /* Align with info, roughly */
+    scrollbar-width: none;
+}
+
+/* Adjust highlights padding based on layout, actually should assume full width, but usually aligned with something */
+.highlights-section {
+    padding-left: 0;
+    /* Let's center or default left */
+    justify-content: flex-start;
+    /* Default */
+    margin-left: 0;
+}
+
+.highlight-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    text-decoration: none;
-    color: inherit;
+    width: 85px;
+    /* Fixed width for better click area */
 }
 
-.stat-number {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-dark);
-}
-
-.stat-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-/* Action Buttons */
-.profile-actions {
+.highlight-circle {
+    width: 77px;
+    height: 77px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    padding: 3px;
     display: flex;
-    gap: 15px;
-    justify-content: center;
-}
-
-.btn-blue-primary {
-    background-color: var(--blue-primary);
-    color: white;
-    border: none;
-    padding: 12px 30px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: background 0.2s;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    flex: 1;
-    max-width: 140px;
-}
-
-.btn-blue-primary:hover {
-    background-color: var(--blue-hover);
-}
-
-.btn-blue-soft {
-    background-color: #f1f5f9;
-    color: var(--text-dark);
-    display: block;
-    border: none;
-    padding: 12px 30px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-align: center;
-    cursor: pointer;
-    transition: background 0.2s;
-    flex: 1;
-    max-width: 140px;
-}
-
-.btn-blue-soft:hover {
-    background-color: #e2e8f0;
-}
-
-/* Sections (Mutuals / Photos) */
-.section-container {
-    width: 90%;
-    max-width: 600px;
-    margin: 20px auto;
-}
-
-.section-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    justify-content: center;
+    background-color: var(--bg-color);
+    margin-bottom: 10px;
+    font-size: 24px;
 }
 
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-dark);
+.highlight-circle.add-new {
+    border: 1px solid var(--text-primary);
+    font-size: 35px;
+    /* Adjusted size */
+    font-weight: 100;
+    color: var(--text-primary);
 }
 
-.section-link {
-    font-size: 0.85rem;
-    color: var(--blue-primary);
-    text-decoration: none;
-    font-weight: 500;
+.highlight-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
 }
 
-/* Photo Grid */
+/* Tabs */
+.profile-tabs {
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    margin-bottom: 0px;
+    /* No margin below tabs */
+}
+
+.tab-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 0 0;
+    /* Check spacing */
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    border-top: 1px solid transparent;
+    margin-top: -1px;
+    height: 52px;
+    /* Standard height */
+    box-sizing: border-box;
+    width: 60px;
+    /* Fixed width for icon centering */
+}
+
+.tab-item.active {
+    color: var(--text-primary);
+    border-top: 1px solid var(--text-primary);
+}
+
+.tab-item.active .tab-icon {
+    color: var(--text-primary);
+}
+
+.tab-icon {
+    font-size: 12px;
+    /* Standard icon size is actually small text or strictly icon */
+    display: flex;
+    align-items: center;
+}
+
+/* Photos Grid */
 .photos-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    /* 3 columns like the design */
-    gap: 10px;
+    gap: 4px;
+    /* Standard small gap */
+    padding-bottom: 50px;
+    padding-top: 20px;
 }
 
 .photo-item {
-    aspect-ratio: 1 / 1;
-    /* Square photos */
-    border-radius: 12px;
-    overflow: hidden;
-    background-color: #cbd5e1;
     position: relative;
+    aspect-ratio: 1 / 1;
+    background-color: var(--border-color);
     cursor: pointer;
-    transition: transform 0.2s;
+    overflow: hidden;
 }
 
 .photo-item:hover {
-    transform: scale(1.02);
+    opacity: 1;
+    /* No opacity change usually */
+}
+
+.photo-item::after {
+    /* Overlay effect on hover */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.1s;
+}
+
+.photo-item:hover::after {
+    background: rgba(0, 0, 0, 0.1);
+    /* Subtle darkening */
 }
 
 .photo-img {
@@ -237,150 +312,257 @@
     object-fit: cover;
 }
 
+/* Empty State */
 .empty-state {
-    text-align: center;
-    padding: 40px;
-    color: var(--text-muted);
-    width: 100%;
     grid-column: 1 / -1;
-}
-
-/* Load More */
-.load-more-container {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    margin-top: 20px;
+    padding: 60px 0;
+    text-align: center;
 }
 
-.btn-load-more {
-    background: white;
-    color: var(--blue-primary);
-    border: 1px solid var(--blue-primary);
-    padding: 8px 20px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    font-weight: 500;
-}
+/* Responsive */
+@media (max-width: 735px) {
+    .profile-container {
+        padding: 0;
+        /* Remove padding on mobile */
+    }
 
-/* Edit Form */
-.edit-modal {
-    background: white;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: var(--card-shadow);
-    width: 90%;
-    max-width: 500px;
-    margin: 20px auto;
-}
+    .profile-header {
+        flex-direction: column;
+        margin-bottom: 0px;
+        padding: 16px;
+    }
 
-.form-group {
-    margin-bottom: 15px;
-}
+    .profile-avatar-section {
+        margin-right: 0;
+        margin-bottom: 0;
+        /* Changed */
+        width: 100%;
+        max-width: none;
+        justify-content: flex-start;
+        display: none;
+        /* On mobile, structure is different. Let's keep simpler responsive: */
+    }
 
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-    color: var(--text-dark);
-}
+    /* Let's try to keep the layout but adjust sizes for mobile: 
+       Row 1: Avatar (Left) + Stats (Right)
+       Row 2: Bio
+       Row 3: Buttons
+    */
+    /* Current Desktop Layout:
+       Col 1: Avatar
+       Col 2: [Username + Buttons] -> [Stats] -> [Bio] 
+    */
 
-.form-input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 1rem;
-    box-sizing: border-box;
-    /* Fix width issues */
-}
+    /* Mobile Override */
+    .profile-header {
+        display: grid;
+        grid-template-columns: min-content 1fr;
+        gap: 20px;
+        padding: 14px 16px;
+    }
 
-.form-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
+    .profile-avatar-section {
+        display: block;
+        /* Show alignment */
+        margin-right: 0;
+        width: auto;
+        padding: 0;
+    }
 
-/* --- Dark Mode Overrides for Profile --- */
-body.dark-mode .profile-container {
-    background-color: #020617;
-    /* Very dark blue/black background */
-}
+    .avatar-container {
+        width: 77px;
+        height: 77px;
+    }
 
-body.dark-mode .profile-card,
-body.dark-mode .edit-modal {
-    background-color: #1e293b;
-    /* Dark card background */
-    color: white;
-    box-shadow: none;
-    /* Often cleaner in dark mode */
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
+    .profile-info-section {
+        display: contents;
+        /* Allow children to flow in grid but logic is hard here without HTML change */
+        /* Let's stick to flex manipulation */
+    }
 
-body.dark-mode .profile-avatar {
-    border-color: #1e293b;
-    /* Match card background */
-    background-color: #1e293b;
-}
+    /* Fallback responsive that works with existing HTML structure */
+    .profile-header {
+        display: flex;
+        flex-direction: row;
+        /* Horizontal again for Avatar + Name? No */
+        flex-wrap: wrap;
+        padding-bottom: 0;
+    }
 
-body.dark-mode .profile-name,
-body.dark-mode .stat-number,
-body.dark-mode .section-title,
-body.dark-mode .form-group label {
-    color: white;
-}
+    .profile-avatar-section {
+        width: 77px;
+        margin-right: 20px;
+    }
 
-body.dark-mode .profile-profession,
-body.dark-mode .stat-label,
-body.dark-mode .empty-state {
-    color: #94a3b8;
-    /* Light slate for muted text */
-}
+    .profile-info-section {
+        width: calc(100% - 100px);
+        padding-top: 5px;
+    }
 
-body.dark-mode .btn-blue-soft {
-    background-color: #334155;
-    /* Darker soft button */
-    color: white;
-}
+    .info-top-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        margin-bottom: 10px;
+    }
 
-body.dark-mode .btn-blue-soft:hover {
-    background-color: #475569;
-}
+    .info-stats-row {
+        display: none;
+        /* Hide desktop stats, normally shown in separate row on mobile */
+    }
 
-body.dark-mode .form-input {
-    background-color: #0f172a;
-    border-color: #334155;
-    color: white;
-}
+    .info-bio-row {
+        width: 100%;
+        margin-top: 10px;
+    }
 
-body.dark-mode .btn-load-more {
-    background-color: transparent;
-    color: white;
-    border-color: rgba(255, 255, 255, 0.2);
-}
+    .profile-actions {
+        width: 100%;
+        margin-top: 10px;
+    }
 
-body.dark-mode .btn-load-more:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
+    .action-btn {
+        width: 100%;
+        text-align: center;
+    }
 
-/* "cover photo should switch to light theme" interpretation:
-   If the user wants the cover photo ITSELF to be lighter in dark mode (unlikely), or 
-   more likely, they want a DIFFERENT default gradient that looks better or "lighter" against the dark UI?
-   OR, maybe they mean the text ON the cover should switch?
-   Let's assume they want a specific different gradient for dark mode, maybe a "night sky" look that is distinct.
-   The current one is already dark blue.
-   Let's try a slightly different, perhaps more "glowing" or "light" themed gradient if that's what they asked?
-   "switch to light theme" -> maybe they want the cover to be LIGHTER in color when in dark mode to provide contrast?
-   Let's try a lighter, contrasting gradient for dark mode default cover.
-*/
-body.dark-mode .profile-cover {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    /* Lighter slate blue for contrast? */
-    /* Or maybe actual "light" colors? */
-    /* background: linear-gradient(135deg, #e0f2fe 0%, #0ea5e9 100%); */
-    /* Let's stick to a sophisticated dark theme variant unless explicitly clearer. */
-    /* Actually, "switch to light theme" might be a typo for "switch to compatible theme". */
-    /* But if they said "cover photo should switch to light theme", maybe they literally want a light-colored cover? */
-    /* Let's give a nice Moon/Night gradient that feels 'lighter' or more 'ethereal'. */
-    background: linear-gradient(to right, #243949 0%, #517fa4 100%);
+    /* User List Modal */
+    .user-list-modal {
+        background-color: var(--bg-color);
+        width: 400px;
+        max-width: 95%;
+        height: 400px;
+        /* Fixed height to ensure scrolling always works if content overflows, or use max-height: 70vh */
+        max-height: 70vh;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        padding: 12px 16px;
+        text-align: center;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border-color);
+        position: relative;
+        font-size: 16px;
+    }
+
+    .modal-search-bar {
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-search-input {
+        width: 100%;
+        padding: 8px 12px;
+        background-color: var(--button-bg);
+        border: none;
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 14px;
+        outline: none;
+        box-sizing: border-box;
+        /* Ensure padding doesn't affect width */
+    }
+
+    .close-modal {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    .user-list-content {
+        overflow-y: auto;
+        flex-grow: 1;
+        padding: 0;
+    }
+
+    .user-list-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+
+    .user-list-item:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    .user-list-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        margin-right: 12px;
+        object-fit: cover;
+    }
+
+    .user-list-info {
+        flex-grow: 1;
+    }
+
+    .user-list-username {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .user-list-fullname {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
+    .list-action-btn {
+        background-color: var(--button-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 6px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        width: auto;
+        /* Override default */
+        min-width: 80px;
+    }
+
+    /* Mobile Stats Bar (New) */
+    /* ...requires HTML change. Let's stick to simple stacking for now */
+
+    /* Simplified Mobile: */
+    .profile-header {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-avatar-section {
+        margin: 0 auto 20px;
+    }
+
+    .profile-info-section {
+        text-align: left;
+        width: 100%;
+        padding: 0;
+    }
+
+    .info-top-row {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .info-stats-row {
+        justify-content: space-around;
+        border-top: 1px solid var(--border-color);
+        padding: 10px 0;
+        margin: 20px -20px 0;
+        /* Full width border */
+    }
 }

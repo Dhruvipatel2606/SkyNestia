@@ -13,4 +13,11 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.',
 });
 
+// Specific limiter for AI features (to protect Gemini RPM)
+export const aiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 5, // 5 AI requests per minute per IP
+    message: { message: "Too many AI requests. Please wait a minute." },
+});
+
 export default limiter;

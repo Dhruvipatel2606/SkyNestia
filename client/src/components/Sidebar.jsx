@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiSearch, FiCompass, FiMessageSquare, FiHeart, FiPlusSquare, FiUser, FiMenu, FiLogOut, FiSettings, FiActivity, FiBookmark, FiMoon, FiAlertCircle, FiChevronLeft } from 'react-icons/fi';
 import './Sidebar.css';
+import Notifications from './Notifications';
 
 const Sidebar = ({ isOpen, toggle }) => {
     const location = useLocation();
@@ -9,6 +10,7 @@ const Sidebar = ({ isOpen, toggle }) => {
     const isActive = (path) => location.pathname === path;
     const [showMore, setShowMore] = useState(false);
     const [showAppearanceMenu, setShowAppearanceMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     // Initialize dark mode from local storage or system preference
     const [darkMode, setDarkMode] = useState(() => {
@@ -18,7 +20,7 @@ const Sidebar = ({ isOpen, toggle }) => {
 
     const menuRef = useRef(null);
 
-    const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+    const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 
     useEffect(() => {
         if (darkMode) {
@@ -31,7 +33,9 @@ const Sidebar = ({ isOpen, toggle }) => {
     }, [darkMode]);
 
     const handleLogout = () => {
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        localStorage.removeItem('user'); // Cleanup old localstorage if exists
         localStorage.removeItem('token');
         window.location.href = '/login';
     };
@@ -82,7 +86,7 @@ const Sidebar = ({ isOpen, toggle }) => {
                     {isOpen && <span>Messages</span>}
                 </Link>
 
-                <div className="sidebar-link" title="Notifications">
+                <div className="sidebar-link" title="Notifications" onClick={() => setShowNotifications(!showNotifications)} style={{ cursor: 'pointer' }}>
                     <FiHeart className="sidebar-icon" />
                     {isOpen && <span>Notifications</span>}
                 </div>
@@ -147,6 +151,8 @@ const Sidebar = ({ isOpen, toggle }) => {
                     {isOpen && <span>More</span>}
                 </div>
             </div>
+
+            <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
         </div>
     );
 };

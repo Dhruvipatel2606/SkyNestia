@@ -24,17 +24,15 @@ export const getUserProfile = async (req, res) => {
 
         const cachedUser = await getCache(cacheKey);
         if (cachedUser) {
-            return res.status(200).json({ source: 'cache', profile: cachedUser });
+            return res.status(200).json(cachedUser);
         }
-        const userProfile = await UserModel.findById(userId).select('-password').populate("followers following", "username profilePicture");;
+        const userProfile = await UserModel.findById(userId).select('-password').populate("followers following", "username profilePicture firstname lastname");
         if (!userProfile) {
             return res.status(404).json({ message: 'User not found' });
         }
 
         await setCache(cacheKey, userProfile, 3600);
         res.json(userProfile);
-
-        // res.json({ source: 'database', profile: userProfile }); // Duplicate response removed
     }
     catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -57,7 +55,6 @@ export const updateUserProfile = async (req, res) => {
         ).select('-password');
 
         await deleteCache(`userProfile:${req.params.id}`);
-
         res.json({ message: 'User profile updated successfully', user: updatedUser });
     }
     catch (error) {
@@ -81,32 +78,40 @@ export const deleteUserProfile = async (req, res) => {
     }
 }
 
-// Follow a user
+// Follow a user (Now sends a request)
 export const followUser = async (req, res) => {
     const id = req.params.id; // User to be followed
     const currentUserId = req.userId; // User who is following
     if (id === currentUserId) {
-        // if someone is trying to follow themselves
         res.status(403).json({ message: 'Cannot follow yourself' });
     } else {
         try {
             const followUser = await UserModel.findById(id);
-            // follow user following upper one
             const followingUser = await UserModel.findById(currentUserId);
-            //if current user is not already following the target user
-            if (!followUser.followers.includes(currentUserId)) {
-                //updating both followers and following lists
-                await followUser.updateOne({ $push: { followers: currentUserId } });
-                await followingUser.updateOne({ $push: { following: id } });
-                await redisClient.del(`userProfile:${id}`);
-                await redisClient.del(`userProfile:${currentUserId}`);
-                await redisClient.del(`followers:${id}`); // Invalidate target followers cache
 
-                return res.status(200).json({ message: 'User followed successfully' });
-            } else {
-                //Forbidden if already following
-                res.status(403).json({ message: 'You are already following this user' });
+            // Check if already following
+            if (followUser.followers.includes(currentUserId)) {
+                return res.status(403).json({ message: 'You are already following this user' });
             }
+
+            // Check if request already sent
+            if (followUser.followRequests.includes(currentUserId)) {
+                return res.status(403).json({ message: 'Follow request already sent' });
+            }
+
+            // Push to followRequests
+            await followUser.updateOne({ $push: { followRequests: currentUserId } });
+
+            // Create Notification
+            const NotificationModel = (await import("../models/NotificationModel.js")).default;
+            await NotificationModel.create({
+                recipientId: id,
+                senderId: currentUserId,
+                type: 'follow_request'
+            });
+
+            res.status(200).json({ message: 'Follow request sent successfully' });
+
         } catch (error) {
             res.status(500).json({ message: 'Error following user', error: error.message });
         }
@@ -116,31 +121,26 @@ export const followUser = async (req, res) => {
 // Unfollow a user
 export const unfollowUser = async (req, res) => {
     const id = req.params.id;
-    // User to be unfollowed
-    const { currentUserId } = req.body; // Note: req.userId is likely better if auth middleware sets it
-    // Wait, unfollowUser destructures currentUserId from body? should use req.userId for security if available
-    const effectiveUserId = req.userId || currentUserId;
+    const currentUserId = req.userId;
 
-    if (id === effectiveUserId) { // if someone is trying to unfollow themselves
+    if (id === currentUserId) {
         res.status(403).json({ message: 'Action forbidden: You cannot unfollow yourself' });
     } else {
         try {
-            //find both users
             const unfollowUser = await UserModel.findById(id);
-            const unfollowingUser = await UserModel.findById(effectiveUserId);
+            const unfollowingUser = await UserModel.findById(currentUserId);
 
-            // Using updateOne with $pull is safer than manual array manipulation + save
-            if (unfollowUser.followers.includes(effectiveUserId)) {
-
-                await unfollowUser.updateOne({ $pull: { followers: effectiveUserId } });
+            if (unfollowUser.followers.includes(currentUserId)) {
+                await unfollowUser.updateOne({ $pull: { followers: currentUserId } });
                 await unfollowingUser.updateOne({ $pull: { following: id } });
 
                 await redisClient.del(`userProfile:${id}`);
-                await redisClient.del(`userProfile:${effectiveUserId}`);
-                await redisClient.del(`followers:${id}`); // Invalidate target followers cache
+                await redisClient.del(`userProfile:${currentUserId}`);
+                await redisClient.del(`followers:${id}`);
+                await redisClient.del(`following:${currentUserId}`);
 
                 res.status(200).json({ message: 'User unfollowed successfully' });
-            } else { //Forbidden if not following
+            } else {
                 res.status(403).json({ message: 'You are not following this user' });
             }
         } catch (error) {
@@ -149,22 +149,24 @@ export const unfollowUser = async (req, res) => {
     }
 }
 
-//Update user profile
+// Update user profile (Alternative endpoint or legacy)
 export const updateProfile = async (req, res) => {
     const { bio, username, profilePicture } = req.body;
+    try {
+        const user = await UserModel.findByIdAndUpdate(
+            req.userId,
+            { bio, username, profilePicture },
+            { new: true }
+        ).select("-password");
 
-    const user = await UserModel.findByIdAndUpdate(
-        req.userId,
-        { bio, username, profilePicture },
-        { new: true }
-    ).select("-password");
-
-    await redisClient.del(`userProfile:${req.userId}`);
-
-    res.json(user);
+        await redisClient.del(`userProfile:${req.userId}`);
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating profile', error: error.message });
+    }
 };
 
-//Suggested users
+// Suggested users
 export const suggestedUsers = async (req, res) => {
     try {
         const currentUser = await UserModel.findById(req.userId);
@@ -231,7 +233,6 @@ export const getMutualFollowers = async (req, res) => {
     const userId = req.params.id; // The profile we are viewing
     const currentUserId = req.userId; // Me
 
-    // Key depends on both users
     const cacheKey = `mutual:${userId}:${currentUserId}`;
 
     try {
@@ -245,20 +246,90 @@ export const getMutualFollowers = async (req, res) => {
 
         if (!viewingProfileUser || !currentUser) return res.status(404).json({ message: 'User not found' });
 
-        // Intersection of viewingProfileUser.followers and currentUser.following
-        // Use MongoDB aggregation or JS filter if lists are small. Assuming small for now or using $in.
-
         const mutuals = await UserModel.find({
-            _id: {
-                $in: viewingProfileUser.followers,
-                $in: currentUser.following
-            }
+            _id: { $in: viewingProfileUser.followers },
+            following: currentUserId // This is simplified, real mutual is intersection
         }).select('username profilePicture firstname lastname');
 
-        await redisClient.set(cacheKey, JSON.stringify(mutuals), { EX: 3600 });
-        res.status(200).json(mutuals);
+        // Let's do it properly
+        const commonIds = viewingProfileUser.followers.filter(id => currentUser.following.includes(id.toString()));
+        const properMutuals = await UserModel.find({ _id: { $in: commonIds } }).select('username profilePicture firstname lastname');
+
+        await redisClient.set(cacheKey, JSON.stringify(properMutuals), { EX: 3600 });
+        res.status(200).json(properMutuals);
 
     } catch (error) {
         res.status(500).json({ message: 'Error fetching mutuals', error: error.message });
     }
-};  
+};
+
+// Get Pending Follow Requests
+export const getFollowRequests = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId).populate('followRequests', 'username profilePicture firstname lastname');
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.status(200).json(user.followRequests);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching requests", error: error.message });
+    }
+};
+
+// Accept Follow Request
+export const acceptFollowRequest = async (req, res) => {
+    const requesterId = req.params.id; // The person who wants to follow me
+    const currentUserId = req.userId; // Me
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        const requester = await UserModel.findById(requesterId);
+
+        if (!currentUser.followRequests.includes(requesterId)) {
+            return res.status(404).json({ message: "Request not found" });
+        }
+
+        // Move from requests to followers
+        await currentUser.updateOne({
+            $pull: { followRequests: requesterId },
+            $push: { followers: requesterId }
+        });
+
+        // Add me to their following
+        await requester.updateOne({ $push: { following: currentUserId } });
+
+        // Create Notification for them
+        const NotificationModel = (await import("../models/NotificationModel.js")).default;
+        await NotificationModel.create({
+            recipientId: requesterId,
+            senderId: currentUserId,
+            type: 'follow_accept'
+        });
+
+        // Clear cache
+        await redisClient.del(`userProfile:${currentUserId}`);
+        await redisClient.del(`userProfile:${requesterId}`);
+
+        res.status(200).json({ message: "Follow request accepted" });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error accepting request", error: error.message });
+    }
+};
+
+// Reject Follow Request
+export const rejectFollowRequest = async (req, res) => {
+    const requesterId = req.params.id;
+    const currentUserId = req.userId;
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        if (!currentUser.followRequests.includes(requesterId)) {
+            return res.status(404).json({ message: "Request not found" });
+        }
+
+        await currentUser.updateOne({ $pull: { followRequests: requesterId } });
+        res.status(200).json({ message: "Follow request rejected" });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error rejecting request", error: error.message });
+    }
+};

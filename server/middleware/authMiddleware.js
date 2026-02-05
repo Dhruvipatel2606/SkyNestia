@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-//This protect all private api routes
+
+// This protect all private api routes
 const authMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;

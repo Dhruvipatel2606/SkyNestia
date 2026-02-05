@@ -1,11 +1,5 @@
 /* Chat Layout */
 .chatLayout {
-    display: grid;
-    grid-template-columns: 280px 1fr 250px;
-    /* Side, ChatList, ChatWindow (or tweaked) */
-    /* Let's assume Side is nav, ChatList is list, ChatWindow is main */
-    /* But looking at ChatLayout.jsx: Side, ChatList, ChatWindow */
-    /* Side might be a thin icon bar. Let's guess structure or make it flex */
     display: flex;
     height: calc(100vh - 100px);
     /* Adjust for navbar */
@@ -304,4 +298,66 @@
 
 .new-chat-btn:hover {
     transform: rotate(90deg);
+}
+
+/* Mobile Chat Responsiveness */
+@media (max-width: 768px) {
+    .chatLayout {
+        flex-direction: column;
+        padding: 0;
+        height: calc(100vh - 140px);
+        /* Adjust for bottom nav + top nav */
+    }
+
+    .chatList {
+        width: 100%;
+        max-width: none;
+        flex: 1;
+    }
+
+    .chatWindow {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        top: 60px;
+        /* Below top nav */
+        left: 0;
+        z-index: 50;
+        display: none;
+        /* Hidden by default */
+        background: white;
+        /* Ensure non-transparent on mobile */
+    }
+
+    /* When chat is active */
+    .chatLayout.chat-active .chatList {
+        display: none;
+    }
+
+    .chatLayout.chat-active .chatWindow {
+        display: flex;
+    }
+
+    .message {
+        max-width: 85%;
+    }
+
+    /* Show Back Button on Mobile */
+    .back-arrow-chat {
+        display: flex !important;
+    }
+}
+
+/* Default state for Back Arrow */
+.back-arrow-chat {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.back-arrow-chat:hover {
+    background: rgba(0, 0, 0, 0.1);
 }

@@ -1,14 +1,11 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers } from '../controllers/UserController.js';
+import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest } from '../controllers/UserController.js';
 import { upload } from '../controllers/PostController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import UserModel from '../models/userModel.js';
 import { redisClient } from '../config/redis.js';
 
 const router = express.Router();
-
-// Search route moved below to group with others
-// router.get('/search', searchUser);
 
 // More specific routes first (with /profile/cache prefix)
 // If not found in cache, fetch from DB and store in cache
@@ -57,6 +54,11 @@ router.get("/suggested/users", authMiddleware, suggestedUsers); // suggested use
 router.get("/followers/:id", getFollowers);
 router.get("/following/:id", getFollowing);
 router.get("/mutual/:id", authMiddleware, getMutualFollowers);
+
+// Follow Requests
+router.get('/requests/pending', authMiddleware, getFollowRequests);
+router.put('/requests/:id/accept', authMiddleware, acceptFollowRequest);
+router.put('/requests/:id/reject', authMiddleware, rejectFollowRequest);
 
 // Generic routes
 router.get('/:id', authMiddleware, getUserProfile); // get user profile - Wildcard matching

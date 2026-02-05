@@ -10,9 +10,16 @@ const PostSchema = new mongoose.Schema({
         status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
     }],
     location: String,
-    access: { type: String, enum: ['public', 'followers', 'close_friends'], default: 'public' },
     music: String, // Store music track name or ID
-    visibility: { type: String, enum: ['public', 'followers', 'close_friends'], default: 'public' }
+    visibility: { type: String, enum: ['public', 'followers', 'close_friends'], default: 'public' },
+    isModerated: { type: Boolean, default: false },
+    isSafe: { type: Boolean, default: true },
+    behaviorAudit: {
+        category: String,
+        reasoning: String,
+        confidence: Number,
+        timestamp: { type: Date, default: Date.now }
+    }
 }, { timestamps: true }
 );
 var Post = mongoose.model("Post", PostSchema);

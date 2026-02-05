@@ -1,52 +1,18 @@
 import dotenv from "dotenv";
-// Load environment variables
 dotenv.config();
+
 console.log("Gemini key loaded:", !!process.env.GEMINI_API_KEY);
 import http from "http";
-import { Server } from "socket.io";
 import app from "./app.js";
+import { initIO } from "./socket/io.js";
+
 const PORT = process.env.PORT || 5000;
+
 // Create HTTP server
 const httpServer = http.createServer(app);
 
-// Attach Socket.IO
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-    },
-});
-
-let activeUsers = [];
-
-io.on("connection", (socket) => {
-    // add new User
-    socket.on("new-user-add", (newUserId) => {
-        // if user is not added previously
-        if (!activeUsers.some((user) => user.userId === newUserId)) {
-            activeUsers.push({
-                userId: newUserId,
-                socketId: socket.id,
-            });
-        }
-        io.emit("get-users", activeUsers);
-    });
-
-    // send message
-    socket.on("send-message", (data) => {
-        const { receiverId } = data;
-        const user = activeUsers.find((u) => u.userId === receiverId);
-        if (user) {
-            io.to(user.socketId).emit("receive-message", data);
-        }
-    });
-
-    socket.on("disconnect", () => {
-        activeUsers = activeUsers.filter(
-            (user) => user.socketId !== socket.id
-        );
-        io.emit("get-users", activeUsers);
-    });
-});
+// Initialize Socket.IO
+initIO(httpServer);
 
 // Start server
 httpServer.listen(PORT, () => {
@@ -54,13 +20,13 @@ httpServer.listen(PORT, () => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION! 💥 Logging error but keeping server alive...');
+    console.error('UNCAUGHT EXCEPTION! 💥 logging error but keeping server alive...');
     console.error(err.name, err.message);
     console.error(err.stack);
 });
 
 process.on('unhandledRejection', (err) => {
-    console.error('UNHANDLED REJECTION! 💥 Logging error but keeping server alive...');
+    console.error('UNHANDLED REJECTION! 💥 logging error but keeping server alive...');
     console.error(err.name, err.message);
     console.error(err.stack);
 });

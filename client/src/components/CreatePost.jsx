@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import API from '../api';
 import Webcam from 'react-webcam';
 import { useNavigate } from 'react-router-dom';
-import { FaCamera, FaImage, FaTimes, FaMusic, FaArrowLeft, FaCheck, FaUserTag, FaSmile } from 'react-icons/fa';
+import { FaCamera, FaImage, FaTimes, FaMusic, FaArrowLeft, FaCheck, FaUserTag, FaSmile, FaPen, FaGlobe, FaUserFriends } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmojiPicker from 'emoji-picker-react';
+import { useSocket } from '../SocketContext';
 const CreatePost = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(0); // 0: Select Source, 1: Capture/Upload, 2: Edit, 3: Details
@@ -12,6 +13,7 @@ const CreatePost = () => {
     const [edits, setEdits] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [editingIndex, setEditingIndex] = useState(0);
+    const socket = useSocket();
 
     // Camera State
     const webcamRef = useRef(null);
@@ -27,6 +29,16 @@ const CreatePost = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [generating, setGenerating] = useState(false);
+
+    useEffect(() => {
+        if (!socket) return;
+        const handleCaption = (data) => {
+            setCaption(data.caption);
+            setGenerating(false);
+        };
+        socket.on('caption-generated', handleCaption);
+        return () => socket.off('caption-generated', handleCaption);
+    }, [socket]);
 
     // Tagging State
     const [taggedUsers, setTaggedUsers] = useState([]);
@@ -169,9 +181,15 @@ const CreatePost = () => {
         const edit = edits[index];
         if (!edit) return {};
 
-        let filter = `brightness(${edit.brightness}%) contrast(${edit.contrast}%) saturate(${edit.saturation}%)`;
+        let filter = `brightness(${edit.brightness}%) contrast(${edit.contrast}%) saturate(${edit.saturation}%) blur(${edit.blur || 0}px)`;
+
         if (edit.filter === 'grayscale') filter += ' grayscale(100%)';
         if (edit.filter === 'sepia') filter += ' sepia(100%)';
+        if (edit.filter === 'vintage') filter += ' sepia(50%) contrast(80%)';
+        if (edit.filter === 'cool') filter += ' hue-rotate(180deg) saturate(80%)'; // Simple cool effect
+        if (edit.filter === 'warm') filter += ' sepia(30%) saturate(120%)';
+        if (edit.filter === 'blackwhite') filter += ' grayscale(100%) contrast(120%)';
+        if (edit.filter === 'invert') filter += ' invert(100%)';
 
         return {
             filter,
@@ -180,6 +198,84 @@ const CreatePost = () => {
         };
     };
 
+    // Helper to apply edits and generate final image blob
+    const generateEditedImage = async (file, edit) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Set canvas size based on crop
+                let width = img.width;
+                let height = img.height;
+                let sourceX = 0, sourceY = 0;
+
+                // Handle aspect ratio cropping (center crop)
+                if (edit.aspectRatio && edit.aspectRatio !== 'original') {
+                    const [rw, rh] = edit.aspectRatio.split(':').map(Number);
+                    const targetRatio = rw / rh;
+                    const originalRatio = width / height;
+
+                    if (originalRatio > targetRatio) {
+                        // Original is wider, crop width
+                        const newWidth = height * targetRatio;
+                        sourceX = (width - newWidth) / 2;
+                        width = newWidth;
+                    } else {
+                        // Original is taller, crop height
+                        const newHeight = width / targetRatio;
+                        sourceY = (height - newHeight) / 2;
+                        height = newHeight;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                // Apply Filters
+                let filterString = `brightness(${edit.brightness}%) contrast(${edit.contrast}%) saturate(${edit.saturation}%) blur(${edit.blur || 0}px)`;
+                if (edit.filter === 'grayscale') filterString += ' grayscale(100%)';
+                if (edit.filter === 'sepia') filterString += ' sepia(100%)';
+                if (edit.filter === 'vintage') filterString += ' sepia(50%) contrast(80%)';
+                if (edit.filter === 'cool') filterString += ' hue-rotate(180deg) saturate(80%)';
+                if (edit.filter === 'warm') filterString += ' sepia(30%) saturate(120%)';
+                if (edit.filter === 'blackwhite') filterString += ' grayscale(100%) contrast(120%)';
+
+                ctx.filter = filterString;
+
+                // Draw Image with Crop
+                ctx.drawImage(img, sourceX, sourceY, width, height, 0, 0, canvas.width, canvas.height);
+
+                // Export
+                canvas.toBlob((blob) => {
+                    const newFile = new File([blob], file.name.replace('.', '_edited.'), { type: 'image/jpeg' });
+                    resolve(newFile);
+                }, 'image/jpeg', 0.9);
+            };
+        });
+    };
+
+    const handleNext = async () => {
+        setLoading(true);
+        try {
+            // Process all images with their edits
+            const processedFiles = await Promise.all(files.map((file, i) => generateEditedImage(file, edits[i])));
+            setFiles(processedFiles); // Update state with optimized images
+
+            // Generate new previews for the next step
+            const newPreviews = processedFiles.map(f => URL.createObjectURL(f));
+            setPreviews(newPreviews);
+            setStep(3);
+        } catch (e) {
+            console.error("Editing failed", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Previous AI Caption stuff...
     const handleGenerateCaption = async () => {
         setGenerating(true);
         try {
@@ -213,11 +309,10 @@ const CreatePost = () => {
             }
 
             const { data } = await API.post('/post/generate-caption', payload);
-            setCaption(data.caption);
+            // Result comes via socket
         } catch (err) {
             console.error(err);
             alert("AI suggestion failed. Please try again.");
-        } finally {
             setGenerating(false);
         }
     };
@@ -290,7 +385,7 @@ const CreatePost = () => {
             await API.post('/post', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            navigate('/home'); // Assuming home is feed
+            navigate('/feed'); // Redirect to feed after approval
         } catch (err) {
             if (err.response?.status === 403 && err.response?.data?.isVulnerable) {
                 setViolationType(err.response.data.violationDetails?.category || "Unsafe Content");
@@ -305,7 +400,7 @@ const CreatePost = () => {
 
     return (
         <AnimatePresence>
-            <div className="create-post-container" style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', minHeight: '100vh', background: '#fff' }}>
+            <div className="create-post-container" style={{ width: '100%', height: '100%', padding: '20px', background: '#fff', boxSizing: 'border-box', overflowY: 'auto' }}>
 
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
@@ -320,10 +415,10 @@ const CreatePost = () => {
                             className="btn-primary"
                             style={{ padding: '8px 20px', borderRadius: '20px' }}
                         >
-                            {loading ? 'Posting...' : 'Share'}
+                            {loading ? 'Checking Behavior...' : 'Share'}
                         </button>
                     ) : (step === 2 && files.length > 0) ? (
-                        <button onClick={() => setStep(3)} style={{ color: '#0095f6', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>Next</button>
+                        <button onClick={handleNext} style={{ color: '#0095f6', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>Next</button>
                     ) : <div style={{ width: 24 }} />}
                 </div>
 
@@ -331,7 +426,7 @@ const CreatePost = () => {
 
                 {/* Step 0: Source Selection */}
                 {step === 0 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="source-selection" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '50px' }}>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="source-selection" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '50px', maxWidth: '600px', margin: '50px auto' }}>
                         <div
                             onClick={handleGallerySelect}
                             style={{ padding: '30px', border: '1px solid #ddd', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
@@ -396,24 +491,26 @@ const CreatePost = () => {
 
                 {/* Step 2: Editor */}
                 {step === 2 && files.length > 0 && (
-                    <div className="editor-view">
-                        <div className="preview-container" style={{ position: 'relative', height: '400px', background: '#f0f0f0', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="editor-view" style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 100px)' }}>
+
+                        {/* Main Preview Area */}
+                        <div className="preview-container" style={{ flex: 1, background: '#f0f2f5', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: '300px' }}>
                             <img
                                 src={previews[editingIndex]}
-                                style={{ maxHeight: '100%', maxWidth: '100%', ...getPreviewStyle(editingIndex) }}
+                                style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', ...getPreviewStyle(editingIndex) }}
                                 alt="preview"
                             />
                         </div>
 
-                        {/* Thumbnails */}
-                        <div style={{ display: 'flex', gap: '10px', padding: '20px 0', overflowX: 'auto' }}>
+                        {/* Thumbnails Strip */}
+                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '5px' }}>
                             {previews.map((src, idx) => (
                                 <div
                                     key={idx}
                                     onClick={() => setEditingIndex(idx)}
                                     style={{
                                         border: editingIndex === idx ? '2px solid #0095f6' : '2px solid transparent',
-                                        borderRadius: '4px', overflow: 'hidden', width: '60px', height: '60px', flexShrink: 0, cursor: 'pointer'
+                                        borderRadius: '8px', overflow: 'hidden', width: '60px', height: '60px', flexShrink: 0, cursor: 'pointer', transition: 'all 0.2s'
                                     }}
                                 >
                                     <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', ...getPreviewStyle(idx) }} alt="thumb" />
@@ -421,40 +518,142 @@ const CreatePost = () => {
                             ))}
                         </div>
 
-                        {/* Controls */}
-                        <div className="edit-controls">
-                            <div style={{ display: 'flex', gap: '20px', marginBottom: '15px', borderBottom: '1px solid #eee' }}>
-                                <button onClick={() => setActiveTab('filters')} style={{ padding: '10px', borderBottom: activeTab === 'filters' ? '2px solid #000' : 'none', fontWeight: 'bold' }}>Filters</button>
-                                <button onClick={() => setActiveTab('adjust')} style={{ padding: '10px', borderBottom: activeTab === 'adjust' ? '2px solid #000' : 'none', fontWeight: 'bold' }}>Adjust</button>
+                        {/* Controls Container */}
+                        <div className="edit-controls" style={{ background: '#fff', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                            {/* Tabs */}
+                            <div style={{ display: 'flex', gap: '30px', marginBottom: '20px', borderBottom: '1px solid #eee' }}>
+                                <button
+                                    onClick={() => setActiveTab('filters')}
+                                    style={{
+                                        padding: '10px 0',
+                                        borderBottom: activeTab === 'filters' ? '2px solid #0095f6' : '2px solid transparent',
+                                        fontWeight: activeTab === 'filters' ? 'bold' : 'normal',
+                                        color: activeTab === 'filters' ? '#0095f6' : '#666',
+                                        background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: '16px'
+                                    }}>
+                                    Filters
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('adjust')}
+                                    style={{
+                                        padding: '10px 0',
+                                        borderBottom: activeTab === 'adjust' ? '2px solid #0095f6' : '2px solid transparent',
+                                        fontWeight: activeTab === 'adjust' ? 'bold' : 'normal',
+                                        color: activeTab === 'adjust' ? '#0095f6' : '#666',
+                                        background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: '16px'
+                                    }}>
+                                    Adjust
+                                </button>
                             </div>
 
+                            {/* Filter Options */}
                             {activeTab === 'filters' && (
                                 <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px' }}>
-                                    {['none', 'grayscale', 'sepia'].map(f => (
-                                        <button
-                                            key={f}
-                                            onClick={() => updateEdit('filter', f)}
-                                            style={{ minWidth: '80px', height: '80px', background: '#eee', border: 'none', borderRadius: '4px', cursor: 'pointer', textTransform: 'capitalize' }}
-                                        >
-                                            {f}
-                                        </button>
+                                    {[
+                                        { name: 'Original', val: 'none', color: '#ddd' },
+                                        { name: 'B&W', val: 'grayscale', color: '#888' },
+                                        { name: 'Sepia', val: 'sepia', color: '#c5a582' },
+                                        { name: 'Vintage', val: 'vintage', color: '#d6c6b0' },
+                                        { name: 'Cool', val: 'cool', color: '#a0c4ff' },
+                                        { name: 'Warm', val: 'warm', color: '#ffadad' },
+                                        { name: 'Noir', val: 'blackwhite', color: '#333' },
+                                        { name: 'Invert', val: 'invert', color: '#222' }
+                                    ].map(f => (
+                                        <div key={f.val} style={{ textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => updateEdit('filter', f.val)}
+                                                style={{
+                                                    width: '70px', height: '70px', background: f.color, border: edits[editingIndex]?.filter === f.val ? '3px solid #0095f6' : 'none',
+                                                    borderRadius: '8px', cursor: 'pointer', marginBottom: '5px',
+                                                    filter: f.val === 'grayscale' ? 'grayscale(100%)' : f.val === 'sepia' ? 'sepia(100%)' : 'none'
+                                                }}
+                                            />
+                                            <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>{f.name}</div>
+                                        </div>
                                     ))}
                                 </div>
                             )}
 
+                            {/* Adjust Options */}
                             {activeTab === 'adjust' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <div>
-                                        <label>Brightness</label>
-                                        <input type="range" min="50" max="150" value={edits[editingIndex]?.brightness || 100} onChange={(e) => updateEdit('brightness', e.target.value)} style={{ width: '100%' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                                            <label>Brightness</label>
+                                            <span>{edits[editingIndex]?.brightness || 100}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="50" max="150"
+                                            value={edits[editingIndex]?.brightness || 100}
+                                            onChange={(e) => updateEdit('brightness', e.target.value)}
+                                            style={{ width: '100%', accentColor: '#0095f6', cursor: 'pointer' }}
+                                        />
                                     </div>
                                     <div>
-                                        <label>Contrast</label>
-                                        <input type="range" min="50" max="150" value={edits[editingIndex]?.contrast || 100} onChange={(e) => updateEdit('contrast', e.target.value)} style={{ width: '100%' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                                            <label>Contrast</label>
+                                            <span>{edits[editingIndex]?.contrast || 100}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="50" max="150"
+                                            value={edits[editingIndex]?.contrast || 100}
+                                            onChange={(e) => updateEdit('contrast', e.target.value)}
+                                            style={{ width: '100%', accentColor: '#0095f6', cursor: 'pointer' }}
+                                        />
                                     </div>
                                     <div>
-                                        <label>Rotation</label>
-                                        <button onClick={() => updateEdit('rotation', (edits[editingIndex]?.rotation || 0) + 90)} style={{ display: 'block', padding: '5px 10px', marginTop: '5px' }}>Rotate 90°</button>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                                            <label>Saturation</label>
+                                            <span>{edits[editingIndex]?.saturation || 100}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="200"
+                                            value={edits[editingIndex]?.saturation || 100}
+                                            onChange={(e) => updateEdit('saturation', e.target.value)}
+                                            style={{ width: '100%', accentColor: '#0095f6', cursor: 'pointer' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                                            <label>Blur</label>
+                                            <span>{edits[editingIndex]?.blur || 0}px</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="10" step="0.5"
+                                            value={edits[editingIndex]?.blur || 0}
+                                            onChange={(e) => updateEdit('blur', e.target.value)}
+                                            style={{ width: '100%', accentColor: '#0095f6', cursor: 'pointer' }}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => updateEdit('rotation', (edits[editingIndex]?.rotation || 0) + 90)}
+                                        style={{
+                                            padding: '10px', background: '#f0f2f5', border: 'none', borderRadius: '8px',
+                                            fontWeight: 'bold', color: '#333', cursor: 'pointer', alignSelf: 'flex-start'
+                                        }}
+                                    >
+                                        Rotate 90° ↻
+                                    </button>
+
+                                    {/* Aspect Ratio */}
+                                    <div>
+                                        <div style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>Crop / Aspect Ratio</div>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            {['original', '1:1', '4:5', '16:9'].map(ratio => (
+                                                <button
+                                                    key={ratio}
+                                                    onClick={() => updateEdit('aspectRatio', ratio)}
+                                                    style={{
+                                                        padding: '8px 12px',
+                                                        background: edits[editingIndex]?.aspectRatio === ratio ? '#0095f6' : '#f0f2f5',
+                                                        color: edits[editingIndex]?.aspectRatio === ratio ? 'white' : '#333',
+                                                        border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {ratio.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -464,9 +663,34 @@ const CreatePost = () => {
 
                 {/* Step 3: Details */}
                 {step === 3 && (
-                    <div className="details-view" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
-                            {previews.length > 0 && <img src={previews[0]} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px' }} alt="thumb" />}
+                    <div className="details-view" style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            {previews.length > 0 && (
+                                <div style={{ width: '100%', maxHeight: '400px', display: 'flex', justifyContent: 'center', background: '#f9f9f9', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+                                    <img src={previews[0]} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }} alt="post-preview" />
+                                    <button
+                                        onClick={() => setStep(2)}
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: '10px',
+                                            right: '10px',
+                                            background: 'rgba(0, 0, 0, 0.6)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            width: '36px',
+                                            height: '36px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer'
+                                        }}
+                                        title="Edit Image"
+                                    >
+                                        <FaPen size={14} />
+                                    </button>
+                                </div>
+                            )}
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                 <button
                                     onClick={handleGenerateCaption}
@@ -490,11 +714,26 @@ const CreatePost = () => {
                                 </button>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     <textarea
+                                        ref={(el) => {
+                                            if (el) {
+                                                el.style.height = 'auto';
+                                                el.style.height = el.scrollHeight + 'px';
+                                            }
+                                        }}
                                         placeholder="Write something interesting..."
                                         value={caption}
                                         onChange={(e) => setCaption(e.target.value)}
-                                        style={{ flex: 1, border: 'none', resize: 'none', fontSize: '16px', fontFamily: 'inherit', outline: 'none' }}
-                                        rows={4}
+                                        style={{
+                                            flex: 1,
+                                            border: 'none',
+                                            resize: 'none',
+                                            fontSize: '16px',
+                                            fontFamily: 'inherit',
+                                            outline: 'none',
+                                            minHeight: '80px',
+                                            overflow: 'hidden'
+                                        }}
+                                        rows={1}
                                     />
                                     <div style={{ position: 'relative' }}>
                                         <button
@@ -504,7 +743,7 @@ const CreatePost = () => {
                                             <FaSmile size={24} />
                                         </button>
                                         {showEmojiPicker && (
-                                            <div style={{ position: 'absolute', bottom: '100%', right: 0, zIndex: 10 }}>
+                                            <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, marginTop: '5px' }}>
                                                 <EmojiPicker onEmojiClick={onEmojiClick} />
                                             </div>
                                         )}
@@ -567,6 +806,31 @@ const CreatePost = () => {
                                     <span style={{ color: '#0095f6', fontWeight: 'bold' }}>{musicName ? 'Change' : 'Upload'}</span>
                                 </div>
                             </label>
+
+                            {/* Visibility Selector */}
+                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Who can see this?</label>
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                                <button
+                                    onClick={() => setVisibility('public')}
+                                    style={{
+                                        flex: 1, padding: '12px', borderRadius: '8px', border: visibility === 'public' ? '2px solid #0095f6' : '1px solid #ddd',
+                                        background: visibility === 'public' ? '#e0f2fe' : '#fff', color: visibility === 'public' ? '#0095f6' : '#333',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold'
+                                    }}
+                                >
+                                    <FaGlobe size={18} /> Public
+                                </button>
+                                <button
+                                    onClick={() => setVisibility('followers')}
+                                    style={{
+                                        flex: 1, padding: '12px', borderRadius: '8px', border: visibility === 'followers' ? '2px solid #0095f6' : '1px solid #ddd',
+                                        background: visibility === 'followers' ? '#e0f2fe' : '#fff', color: visibility === 'followers' ? '#0095f6' : '#333',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold'
+                                    }}
+                                >
+                                    <FaUserFriends size={18} /> Followers
+                                </button>
+                            </div>
                             {(musicFile || musicUrl) && (
                                 <audio controls src={musicFile ? URL.createObjectURL(musicFile) : musicUrl} style={{ width: '100%', marginTop: '10px' }} />
                             )}
@@ -642,53 +906,56 @@ const CreatePost = () => {
                             <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Add Location" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                         </div>
                     </div>
-                )}
+                )
+                }
                 {/* Vulnerability Alert Modal */}
-                {showVulnerabilityModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
-                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                            background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 1000, padding: '20px'
-                        }}
-                    >
+                {
+                    showVulnerabilityModal && (
                         <motion.div
-                            initial={{ scale: 0.9, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             style={{
-                                background: 'white', padding: '30px', borderRadius: '16px',
-                                maxWidth: '400px', width: '100%', textAlign: 'center'
+                                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                zIndex: 1000, padding: '20px'
                             }}
                         >
-                            <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
-                            <h2 style={{ color: '#e1306c', marginBottom: '10px' }}>Post Rejected</h2>
-                            <p style={{ color: '#666', marginBottom: '20px', lineHeight: '1.5' }}>
-                                This post contains content that violates our community safety standards.
-                                <br />
-                                <strong>Category: {violationType}</strong>
-                            </p>
-                            <p style={{ fontSize: '14px', color: '#999', marginBottom: '25px' }}>
-                                You are not able to upload this post. Please ensure your content follows our guidelines.
-                            </p>
-                            <button
-                                onClick={() => navigate('/home')}
-                                className="btn-primary"
+                            <motion.div
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
                                 style={{
-                                    width: '100%', padding: '12px', borderRadius: '10px',
-                                    background: '#0095f6', border: 'none', color: 'white',
-                                    fontWeight: 'bold', cursor: 'pointer'
+                                    background: 'white', padding: '30px', borderRadius: '16px',
+                                    maxWidth: '400px', width: '100%', textAlign: 'center'
                                 }}
                             >
-                                Go to Feed
-                            </button>
+                                <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                                <h2 style={{ color: '#e1306c', marginBottom: '10px' }}>Post Rejected</h2>
+                                <p style={{ color: '#666', marginBottom: '20px', lineHeight: '1.5' }}>
+                                    This post contains content that violates our community safety standards.
+                                    <br />
+                                    <strong>Category: {violationType}</strong>
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#999', marginBottom: '25px' }}>
+                                    You are not able to upload this post. Please ensure your content follows our guidelines.
+                                </p>
+                                <button
+                                    onClick={() => navigate('/home')}
+                                    className="btn-primary"
+                                    style={{
+                                        width: '100%', padding: '12px', borderRadius: '10px',
+                                        background: '#0095f6', border: 'none', color: 'white',
+                                        fontWeight: 'bold', cursor: 'pointer'
+                                    }}
+                                >
+                                    Go to Feed
+                                </button>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </div>
-        </AnimatePresence>
+                    )
+                }
+            </div >
+        </AnimatePresence >
     );
 };
 

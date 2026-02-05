@@ -111,7 +111,6 @@ body::before {
 }
 
 /* Layout */
-/* Layout */
 .app {
   display: flex;
   flex-direction: row;
@@ -137,6 +136,26 @@ body::before {
     /* Condensed sidebar width */
     width: calc(100% - 70px);
     padding: 1rem;
+  }
+}
+
+@media (max-width: 500px) {
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 1rem;
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+  }
+
+  .nav {
+    /* Hide top nav if duplicate, or adjust */
+    padding: 0.5rem 1rem;
+  }
+
+  .logo {
+    font-size: 1.8rem;
+    /* Smaller logo */
   }
 }
 
@@ -447,7 +466,6 @@ body::before {
   max-height: 600px;
   object-fit: contain;
   background-color: #f8fafc;
-  /* dark mode hook later */
 }
 
 .post-footer {
@@ -477,8 +495,8 @@ body::before {
 }
 
 .post-action.liked {
-  color: #c326b6;
-  /*for liked */
+  color: #ef4444;
+  /* Red for liked */
 }
 
 /* Loading States */
@@ -521,6 +539,7 @@ body::before {
   justify-content: center;
 }
 
+/* Helper Utilities */
 .text-center {
   text-align: center;
 }
@@ -545,6 +564,10 @@ body::before {
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Profile Specifics removed to allow Profile.css to take precedence */

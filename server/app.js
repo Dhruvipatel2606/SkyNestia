@@ -15,7 +15,7 @@ import FeedRoute from './routes/FeedRoute.js';
 import ChatRoute from './routes/ChatRoute.js';
 import MessageRoute from './routes/MessageRoute.js';
 import CommentRoute from './routes/CommentRoute.js';
-
+import NotificationRoute from './routes/NotificationRoute.js';
 
 const app = express();
 
@@ -29,7 +29,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.static('public'));
-app.use('/images', express.static('images'));
 
 // Routes
 app.use('/auth', AuthRoute);
@@ -45,6 +44,7 @@ app.use("/api/feed", FeedRoute);
 app.use('/api/chat', ChatRoute);
 app.use('/api/message', MessageRoute);
 app.use('/api/comment', CommentRoute);
+app.use('/api/notification', NotificationRoute);
 
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);
