@@ -62,7 +62,7 @@ router.put('/requests/:id/reject', authMiddleware, rejectFollowRequest);
 
 // Generic routes
 router.get('/:id', authMiddleware, getUserProfile); // get user profile - Wildcard matching
-router.put('/update/:id', authMiddleware, upload.single('profileImage'), updateUserProfile); // update user profile
+router.put('/update/:id', authMiddleware, upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), updateUserProfile); // update user profile
 router.delete('/:id', authMiddleware, deleteUserProfile); // delete user profile
 router.put('/:id/follow', authMiddleware, followUser); // follow user
 router.put('/:id/unfollow', authMiddleware, unfollowUser); // unfollow user

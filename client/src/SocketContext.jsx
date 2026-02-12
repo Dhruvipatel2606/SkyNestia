@@ -12,7 +12,7 @@ export const SocketProvider = ({ children, userId }) => {
         if (!userId) return;
 
         // Ensure we connect to the correct backend URL
-        const socketUrl = "http://localhost:5000";
+        const socketUrl = "http://localhost:5000"; // API.defaults.baseURL.replace('/api', '') could be better but sticking to port 5000 for now as it matches server
         const newSocket = io(socketUrl);
 
         newSocket.emit("new-user-add", userId);

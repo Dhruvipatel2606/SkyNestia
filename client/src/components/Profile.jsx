@@ -23,7 +23,8 @@ const Profile = () => {
   const [editData, setEditData] = useState({
     firstname: '',
     lastname: '',
-    bio: ''
+    bio: '',
+    isPrivate: false
   });
   const [imageFile, setImageFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
@@ -56,13 +57,22 @@ const Profile = () => {
         setEditData({
           firstname: userData.firstname || '',
           lastname: userData.lastname || '',
-          bio: userData.bio || ''
+          bio: userData.bio || '',
+          isPrivate: userData.isPrivate || false
         });
 
         // Fetch User Posts (Page 1)
         setPostsPage(1);
         const postsRes = await API.get(`/post/user/${profileId}?page=1&limit=9`);
-        setPosts(postsRes.data.posts || []);
+
+        // Handle Private Component Logic
+        if (postsRes.data.isPrivate && postsRes.data.posts.length === 0) {
+          setPosts([]);
+          // We can use a state to track strictly if it's locked, but we can derive it
+        } else {
+          setPosts(postsRes.data.posts || []);
+        }
+
         setHasMorePosts(postsRes.data.hasMore);
 
       } catch (err) {
@@ -111,6 +121,8 @@ const Profile = () => {
       formData.append("firstname", editData.firstname);
       formData.append("lastname", editData.lastname);
       formData.append("bio", editData.bio);
+      formData.append("isPrivate", editData.isPrivate);
+
       if (imageFile) {
         formData.append("profileImage", imageFile);
       }
@@ -142,11 +154,18 @@ const Profile = () => {
 
       setUserProfile(prev => {
         if (action === 'follow') {
-          // Optimistically add to followRequests
-          return {
-            ...prev,
-            followRequests: [...(prev.followRequests || []), { _id: currentUserId }]
-          };
+          if (prev.isPrivate) {
+            // If private, just add to requests visually if you want, or just wait for refresh
+            // API just returns message. Ideally we show "Requested"
+            return { ...prev, followRequests: [...(prev.followRequests || []), { _id: currentUserId }] };
+          } else {
+            // Public - Direct Follow
+            return {
+              ...prev,
+              followRequests: [...(prev.followRequests || []), { _id: currentUserId }], // Just to be safe or
+              followers: [...prev.followers, { _id: currentUserId }] // Optimistic update
+            };
+          }
         } else {
           // Unfollow logic
           return {
@@ -156,6 +175,11 @@ const Profile = () => {
           };
         }
       });
+
+      // Re-fetch to ensure sync (simplest way to handle the branching logic)
+      const userRes = await API.get(`/user/${profileId}`);
+      setUserProfile(userRes.data.profile || userRes.data.user || userRes.data);
+
     } catch (err) {
       console.error("Follow error", err);
     }
@@ -194,6 +218,13 @@ const Profile = () => {
     }
   };
 
+  // Check if profile is locked
+  // If private, not owner, not follower, AND no viewable posts (meaning all posts are private/followers-only or empty)
+  // If we have 'posts' (which are public ones returned from backend), we shouldn't show the full lock screen.
+  // We can show a partial lock or just the posts.
+  // The backend now returns public posts for strangers even if private.
+  const isLocked = userProfile?.isPrivate && !isOwnProfile && !userProfile?.followers?.some(u => (u._id || u) === currentUserId) && posts.length === 0;
+
   if (!profileId) return <div className="card">Please log in to view your profile.</div>;
   if (loading) return <div style={{ textAlign: 'center', marginTop: '100px', color: '#2563eb', width: '100%' }}>Loading Profile...</div>;
   if (!userProfile) return <div className="card error">User not found</div>;
@@ -231,9 +262,9 @@ const Profile = () => {
           </div>
 
           <div className="info-stats-row">
-            <div className="stat-item"><strong>{userProfile.postsCount || posts.length}</strong> posts</div>
-            <div className="stat-item" onClick={() => openModal('followers')}><strong>{userProfile.followers?.length || 0}</strong> followers</div>
-            <div className="stat-item" onClick={() => openModal('following')}><strong>{userProfile.following?.length || 0}</strong> following</div>
+            <div className="stat-item"><strong>{userProfile.postsCount || (isLocked ? 0 : posts.length)}</strong> posts</div>
+            <div className="stat-item" onClick={() => !isLocked && openModal('followers')} style={{ cursor: isLocked ? 'default' : 'pointer' }}><strong>{userProfile.followers?.length || 0}</strong> followers</div>
+            <div className="stat-item" onClick={() => !isLocked && openModal('following')} style={{ cursor: isLocked ? 'default' : 'pointer' }}><strong>{userProfile.following?.length || 0}</strong> following</div>
           </div>
         </div>
       </div>
@@ -263,19 +294,19 @@ const Profile = () => {
         )}
       </div>
 
-
-
       {/* Highlights Section */}
       <div className="highlights-section">
         {
-          userProfile.highlights && userProfile.highlights.map((highlight, index) => (
-            <div className="highlight-item" key={index}>
-              <div className="highlight-circle">
-                <img src={highlight.cover} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+          !isLocked ? (
+            userProfile.highlights && userProfile.highlights.map((highlight, index) => (
+              <div className="highlight-item" key={index}>
+                <div className="highlight-circle">
+                  <img src={highlight.cover} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                </div>
+                <span className="highlight-label">{highlight.title}</span>
               </div>
-              <span className="highlight-label">{highlight.title}</span>
-            </div>
-          ))
+            ))
+          ) : null
         }
 
         {
@@ -298,39 +329,46 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Photos Grid */}
-      <div className="photos-grid">
-        {posts.map(post => {
-          const imgUrl = getPostImg(post);
-          return (
-            <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
-              {imgUrl ? (
-                <img
-                  src={imgUrl}
-                  alt="post"
-                  className="photo-img"
-                  onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=Error"; }}
-                />
-              ) : (
-                <div className="text-post-fallback">
-                  {post.caption?.substring(0, 30)}...
-                </div>
-              )}
+      {/* Photos Grid or Privacy Message */}
+      {isLocked ? (
+        <div className="privacy-locked-container" style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔒</div>
+          <h3>This Account is Private</h3>
+          <p>Follow to see their private photos and videos.</p>
+        </div>
+      ) : (
+        <div className="photos-grid">
+          {posts.map(post => {
+            const imgUrl = getPostImg(post);
+            return (
+              <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
+                {imgUrl ? (
+                  <img
+                    src={imgUrl}
+                    alt="post"
+                    className="photo-img"
+                    onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=Error"; }}
+                  />
+                ) : (
+                  <div className="text-post-fallback">
+                    {post.caption?.substring(0, 30)}...
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {posts.length === 0 && (
+            <div className="empty-state">
+              <div className="camera-icon">📷</div>
+              <h3>{isOwnProfile ? "Share photos" : "No posts yet"}</h3>
+              {isOwnProfile && <button className="action-btn text-blue" onClick={() => navigate('../create-post')}>Share your first photo</button>}
             </div>
-          )
-        })}
-        {posts.length === 0 && (
-          <div className="empty-state">
-            <div className="camera-icon">📷</div>
-            <h3>Share photos</h3>
-            <p>When you share photos, they will appear on your profile.</p>
-            {isOwnProfile && <button className="action-btn text-blue" onClick={() => navigate('../create-post')}>Share your first photo</button>}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {
-        hasMorePosts && posts.length > 0 && (
+        !isLocked && hasMorePosts && posts.length > 0 && (
           <div className="load-more-container">
             <button className="btn-load-more" onClick={loadMorePosts} disabled={loadingPosts}>
               {loadingPosts ? 'Loading...' : 'Load More'}
@@ -338,8 +376,6 @@ const Profile = () => {
           </div>
         )
       }
-
-
 
       {/* User List Modal (Followers/Following) */}
       {activeModal && (
@@ -425,6 +461,15 @@ const Profile = () => {
                 <div className="form-group">
                   <label>Bio</label>
                   <textarea className="form-input" rows={3} value={editData.bio} onChange={e => setEditData({ ...editData, bio: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label>Private Account</label>
+                  <input
+                    type="checkbox"
+                    checked={editData.isPrivate}
+                    onChange={e => setEditData({ ...editData, isPrivate: e.target.checked })}
+                    style={{ width: '20px', height: '20px' }}
+                  />
                 </div>
                 <div className="form-actions">
                   <button type="button" className="action-btn" onClick={() => setIsEditing(false)}>Cancel</button>

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const TagRequests = () => {
     const [pendingTags, setPendingTags] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fadingPostId, setFadingPostId] = useState(null);
     const navigate = useNavigate();
 
     const currentUserRaw = localStorage.getItem('user');
@@ -27,11 +28,17 @@ const TagRequests = () => {
 
     const handleTagAction = async (postId, status) => {
         try {
+            setFadingPostId(postId);
+            // Wait for animation to finish (e.g., 500ms)
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             await API.put(`/post/${postId}/tag`, { status });
             setPendingTags(prev => prev.filter(p => p._id !== postId));
         } catch (err) {
             console.error("Tag action failed", err);
             alert("Failed to update tag status");
+        } finally {
+            setFadingPostId(null);
         }
     };
 
@@ -65,7 +72,16 @@ const TagRequests = () => {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {pendingTags.map(post => (
-                        <div key={post._id} style={{ border: '1px solid #eee', padding: '15px', borderRadius: '12px', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <div key={post._id} style={{
+                            border: '1px solid #eee',
+                            padding: '15px',
+                            borderRadius: '12px',
+                            background: '#fff',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            transition: 'all 0.5s ease',
+                            opacity: fadingPostId === post._id ? 0 : 1,
+                            transform: fadingPostId === post._id ? 'translateX(20px)' : 'translateX(0)'
+                        }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                                 <img src={getProfilePic(post.userId)} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} alt="av" />
                                 <div>

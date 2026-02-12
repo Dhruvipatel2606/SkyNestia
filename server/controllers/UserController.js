@@ -43,9 +43,14 @@ export const getUserProfile = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
     try {
         const updateData = { ...req.body };
-        // If file uploaded, update profilePicture field
-        if (req.file) {
-            updateData.profilePicture = req.file.filename;
+        // If files uploaded, update respective fields
+        if (req.files) {
+            if (req.files.profileImage) {
+                updateData.profilePicture = req.files.profileImage[0].filename;
+            }
+            if (req.files.coverImage) {
+                updateData.coverPicture = req.files.coverImage[0].filename;
+            }
         }
 
         const updatedUser = await UserModel.findByIdAndUpdate(
@@ -99,18 +104,41 @@ export const followUser = async (req, res) => {
                 return res.status(403).json({ message: 'Follow request already sent' });
             }
 
-            // Push to followRequests
-            await followUser.updateOne({ $push: { followRequests: currentUserId } });
+            // Check if user is private
+            if (followUser.isPrivate) {
+                // Private: Send Request
+                await followUser.updateOne({ $push: { followRequests: currentUserId } });
 
-            // Create Notification
-            const NotificationModel = (await import("../models/NotificationModel.js")).default;
-            await NotificationModel.create({
-                recipientId: id,
-                senderId: currentUserId,
-                type: 'follow_request'
-            });
+                // Create Notification
+                const NotificationModel = (await import("../models/NotificationModel.js")).default;
+                await NotificationModel.create({
+                    recipientId: id,
+                    senderId: currentUserId,
+                    type: 'follow_request'
+                });
 
-            res.status(200).json({ message: 'Follow request sent successfully' });
+                res.status(200).json({ message: 'Follow request sent successfully' });
+            } else {
+                // Public: Direct Follow
+                await followUser.updateOne({ $push: { followers: currentUserId } });
+                await followingUser.updateOne({ $push: { following: id } });
+
+                // Create Notification
+                const NotificationModel = (await import("../models/NotificationModel.js")).default;
+                await NotificationModel.create({
+                    recipientId: id,
+                    senderId: currentUserId,
+                    type: 'follow'
+                });
+
+                // Invalidate caches
+                await redisClient.del(`userProfile:${id}`);
+                await redisClient.del(`userProfile:${currentUserId}`);
+                await redisClient.del(`followers:${id}`);
+                await redisClient.del(`following:${currentUserId}`);
+
+                res.status(200).json({ message: 'User followed successfully' });
+            }
 
         } catch (error) {
             res.status(500).json({ message: 'Error following user', error: error.message });
@@ -185,16 +213,22 @@ export const suggestedUsers = async (req, res) => {
 // Get Followers List
 export const getFollowers = async (req, res) => {
     const userId = req.params.id;
+    const currentUserId = req.userId;
     const cacheKey = `followers:${userId}`;
 
     try {
+        const user = await UserModel.findById(userId).populate('followers', 'username profilePicture firstname lastname');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Privacy Check
+        if (user.isPrivate && userId !== currentUserId && !user.followers.some(f => f._id.toString() === currentUserId)) {
+            return res.status(403).json({ message: 'This account is private' });
+        }
+
         const cachedFn = await redisClient.get(cacheKey);
         if (cachedFn) {
             return res.status(200).json(JSON.parse(cachedFn));
         }
-
-        const user = await UserModel.findById(userId).populate('followers', 'username profilePicture firstname lastname');
-        if (!user) return res.status(404).json({ message: 'User not found' });
 
         const followers = user.followers;
         await redisClient.set(cacheKey, JSON.stringify(followers), { EX: 3600 });
@@ -208,16 +242,27 @@ export const getFollowers = async (req, res) => {
 // Get Following List
 export const getFollowing = async (req, res) => {
     const userId = req.params.id;
+    const currentUserId = req.userId;
     const cacheKey = `following:${userId}`;
 
     try {
+        const user = await UserModel.findById(userId).populate('following', 'username profilePicture firstname lastname');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Privacy Check (Using followers list because 'user' object has 'followers' populated? No, checking logic)
+        // Check if I am allowed to see their info.
+        // I need 'followers' to check if I am following them.
+        const userWithFollowers = await UserModel.findById(userId).select('followers isPrivate');
+        const isFollowing = userWithFollowers.followers.includes(currentUserId);
+
+        if (userWithFollowers.isPrivate && userId !== currentUserId && !isFollowing) {
+            return res.status(403).json({ message: 'This account is private' });
+        }
+
         const cachedFn = await redisClient.get(cacheKey);
         if (cachedFn) {
             return res.status(200).json(JSON.parse(cachedFn));
         }
-
-        const user = await UserModel.findById(userId).populate('following', 'username profilePicture firstname lastname');
-        if (!user) return res.status(404).json({ message: 'User not found' });
 
         const following = user.following;
         await redisClient.set(cacheKey, JSON.stringify(following), { EX: 3600 });

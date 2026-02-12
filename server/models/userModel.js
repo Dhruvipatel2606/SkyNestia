@@ -29,9 +29,17 @@ const userSchema = new Schema({
     profilePicture: {
         type: String,
     },
+    coverPicture: {
+        type: String,
+        default: "",
+    },
     isAdmin: {
         type: Boolean,
         default: false
+    },
+    isVerified: {
+        type: Boolean,
+        default: false,
     },
     bio: {
         type: String,
@@ -51,6 +59,10 @@ const userSchema = new Schema({
             default: [],
         },
     ],
+    isPrivate: {
+        type: Boolean,
+        default: false,
+    },
 }, { timestamps: true });
 userSchema.index({ username: 'text' });
 

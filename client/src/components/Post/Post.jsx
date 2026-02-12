@@ -213,7 +213,7 @@ const Post = ({ post }) => {
                 ) : null}
 
                 {/* Tagged Users Indicator and Overlay */}
-                {post.tags && post.tags.length > 0 && (
+                {post.tags && post.tags.filter(t => t.status === 'approved').length > 0 && (
                     <>
                         <button
                             className="tag-indicator-btn"
@@ -226,7 +226,7 @@ const Post = ({ post }) => {
                         {showTags && (
                             <div className="tags-overlay">
                                 <div className="tags-list-bubble">
-                                    {post.tags.map((tag, idx) => (
+                                    {post.tags.filter(t => t.status === 'approved').map((tag, idx) => (
                                         <Link
                                             to={`/profile/${tag.userId?._id}`}
                                             key={idx}

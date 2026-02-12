@@ -99,6 +99,18 @@ export const createPost = async (req, res) => {
             }
         });
 
+        // Send Tag Notifications
+        if (processedTags.length > 0) {
+            const NotificationModel = (await import("../models/NotificationModel.js")).default;
+            const notifications = processedTags.map(tag => ({
+                recipientId: tag.userId,
+                senderId: userId,
+                type: 'tag_request',
+                postId: post._id
+            }));
+            await NotificationModel.insertMany(notifications);
+        }
+
         res.status(201).json({ message: "Post created successfully", post });
 
         try {
@@ -269,20 +281,56 @@ export const toggleTagStatus = async (req, res) => {
 };
 
 export const getUserPosts = async (req, res) => {
-    const userId = req.params.id;
+    const userId = req.params.id; // Profile Owner
+    const currentUserId = req.userId; // Viewer
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+
     try {
-        const posts = await postModel.find({ userId })
+        const user = await userModel.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Check Privacy
+        // If profile is private AND I am not the owner AND I am not following
+        const isOwner = currentUserId === userId;
+        const isFollowing = user.followers.map(id => id.toString()).includes(currentUserId);
+
+        if (!isOwner && !isFollowing) {
+            // Not owner and Not following.
+            // If user is private, we generally block, UNLESS they have public posts.
+            // The user explicitly requested: "But the user had posted the post in public than other user can also see it."
+            // So we construct a query to only fetch 'public' posts.
+        }
+
+        let query = { userId };
+        if (!isOwner) {
+            if (isFollowing) {
+                // Follower: See Public and Followers
+                // query.visibility = { $in: ['public', 'followers'] }; 
+                // (Assuming default is public/followers if field missing, but good to be explicit if we have strict visibility)
+            } else {
+                // Non-Follower (Stranger)
+                // Can ONLY see 'public' posts.
+                // This applies to both Private and Public accounts based on user request.
+                query.visibility = 'public';
+            }
+        }
+
+        // If it's a private account and the query returns NO posts, then the frontend can show the 'Private' lock.
+        // But if it returns posts, the frontend should show them.
+        // So we don't block here. We just filter.
+
+
+        const posts = await postModel.find(query)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
             .populate('userId', 'username profilePicture firstname lastname')
             .populate('tags.userId', 'username firstname lastname');
-        const totalPosts = await postModel.countDocuments({ userId });
+        const totalPosts = await postModel.countDocuments(query);
         const hasMore = skip + posts.length < totalPosts;
-        res.status(200).json({ posts, hasMore, totalPosts });
+        res.status(200).json({ posts, hasMore, totalPosts, isPrivate: user.isPrivate });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching user posts', error: error.message });
     }

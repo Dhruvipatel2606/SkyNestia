@@ -110,6 +110,7 @@ const Notifications = ({ isOpen, onClose }) => {
                                         {notif.type === 'like' && <FiHeart fill="red" color="red" />}
                                         {notif.type === 'follow_accept' && <FiUserCheck color="green" />}
                                         {notif.type === 'follow_request' && <FiUserCheck />}
+                                        {notif.type === 'follow' && <FiUserCheck color="#0095f6" />}
                                     </div>
                                     <img
                                         src={notif.senderId?.profilePicture ? (notif.senderId.profilePicture.startsWith('http') ? notif.senderId.profilePicture : `${API.defaults.baseURL.replace('/api', '')}/images/${notif.senderId.profilePicture.split('/').pop()}`) : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
@@ -121,6 +122,7 @@ const Notifications = ({ isOpen, onClose }) => {
                                         {notif.type === 'like' && ` liked your post.`}
                                         {notif.type === 'follow_accept' && ` accepted your follow request.`}
                                         {notif.type === 'follow_request' && ` sent you a follow request.`}
+                                        {notif.type === 'follow' && ` started following you.`}
                                         <span className="time-ago">{new Date(notif.createdAt).toLocaleDateString()}</span>
                                     </div>
                                     {notif.postId && notif.postId.image && (

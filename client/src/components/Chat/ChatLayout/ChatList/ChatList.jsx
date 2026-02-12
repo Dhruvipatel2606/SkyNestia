@@ -28,8 +28,6 @@ export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUs
 
     const handleStartChat = async (userId) => {
         try {
-            // Fix: Pass senderId and receiverId as separate arguments or match API
-            // Based on ChatRequests.js: export const createChat = (senderId, receiverId) => API.post('/chat', { senderId, receiverId });
             const res = await createChat(currentUser._id, userId);
             const chatData = res.data;
 
@@ -42,6 +40,12 @@ export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUs
         } catch (error) {
             console.error("Error starting chat:", error);
         }
+    };
+
+    const getProfileImg = (img) => {
+        if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+        if (img.startsWith("http")) return img;
+        return `${API.defaults.baseURL.replace('/api', '')}/images/${img.split('/').pop()}`;
     };
 
     const checkOnlineStatus = (chat) => {
@@ -85,7 +89,7 @@ export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUs
                                 <div className="following-list">
                                     {following.map(user => (
                                         <div key={user._id} onClick={() => handleStartChat(user._id)} className="following-item">
-                                            <img src={user.profilePicture || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                                            <img src={getProfileImg(user.profilePicture)}
                                                 alt="" />
                                             <span>{user.username || user.firstname}</span>
                                         </div>

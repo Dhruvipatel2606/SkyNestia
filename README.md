@@ -91,4 +91,4 @@ Visit the local link (typically `http://localhost:5173`) and witness SkyNestia i
 ## 📜 License & Rights
 This project is open for educational and portfolio purposes. Feel free to fork, explore, and innovate. 
 
-*Crafted with 💙 and ☕.*
+Crafted with 💙
