@@ -27,7 +27,10 @@ const Profile = () => {
     isPrivate: false
   });
   const [imageFile, setImageFile] = useState(null);
+
   const [previewImage, setPreviewImage] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
+  const [previewCover, setPreviewCover] = useState(null);
 
   // Tagging & Post View State
   const [pendingTags, setPendingTags] = useState([]);
@@ -58,8 +61,10 @@ const Profile = () => {
           firstname: userData.firstname || '',
           lastname: userData.lastname || '',
           bio: userData.bio || '',
+
           isPrivate: userData.isPrivate || false
         });
+        setPreviewCover(userData.coverPicture ? getProfileImg(userData.coverPicture) : null);
 
         // Fetch User Posts (Page 1)
         setPostsPage(1);
@@ -114,6 +119,14 @@ const Profile = () => {
     }
   };
 
+  const handleCoverChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      let img = e.target.files[0];
+      setCoverFile(img);
+      setPreviewCover(URL.createObjectURL(img));
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
@@ -125,6 +138,9 @@ const Profile = () => {
 
       if (imageFile) {
         formData.append("profileImage", imageFile);
+      }
+      if (coverFile) {
+        formData.append("coverImage", coverFile);
       }
 
       const res = await API.put(`/user/update/${profileId}`, formData, {
@@ -143,6 +159,22 @@ const Profile = () => {
     } catch (err) {
       console.error(err);
       alert("Failed to update profile");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      try {
+        await API.delete(`/user/${currentUserId}`, {
+          data: { currentUserId: currentUserId, CurrentUserAdminStatus: currentUser.isAdmin }
+        });
+        sessionStorage.clear();
+        localStorage.clear();
+        navigate('/auth');
+      } catch (err) {
+        console.error("Delete account error", err);
+        alert("Failed to delete account");
+      }
     }
   };
 
@@ -233,23 +265,44 @@ const Profile = () => {
     <div className="profile-container">
 
 
+      <div className="profile-cover-section">
+        {userProfile.coverPicture || previewCover ? (
+          <img src={previewCover || getProfileImg(userProfile.coverPicture)} className="profile-cover-img" alt="cover" />
+        ) : (
+          <div style={{ width: '100%', height: '100%', backgroundColor: '#ccd0d5' }}></div>
+        )}
+        {isOwnProfile && (
+          <button className="edit-cover-btn" onClick={() => setIsEditing(true)}>
+            📷 Edit Cover
+          </button>
+        )}
+      </div>
+
       <div className="profile-header">
         {/* Left: Avatar */}
         <div className="profile-avatar-section">
-          <div className="avatar-container">
+          <div className="avatar-container" onClick={() => isOwnProfile && setIsEditing(true)}>
             <img
               className="profile-avatar"
               src={getProfileImg(userProfile.profilePicture)}
               alt="Profile"
               onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}
             />
+            {isOwnProfile && (
+              <div className="avatar-overlay">
+                📷
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right: Info */}
         <div className="profile-info-section">
           <div className="info-top-row">
-            <h2 className="username-text">{userProfile.username}</h2>
+            <h2 className="username-text">
+              {userProfile.username}
+              {userProfile.isVerified && <span className="verified-badge" title="Verified">✔️</span>}
+            </h2>
             {isOwnProfile && <div className="settings-icon" onClick={() => navigate('/settings')} title="Settings">⚙️</div>}
           </div>
 
@@ -260,39 +313,44 @@ const Profile = () => {
           <div className="bio-row" style={{ marginBottom: '16px' }}>
             <div className="bio-text">{userProfile.bio || "No bio yet."}</div>
           </div>
-
           <div className="info-stats-row">
             <div className="stat-item"><strong>{userProfile.postsCount || (isLocked ? 0 : posts.length)}</strong> posts</div>
             <div className="stat-item" onClick={() => !isLocked && openModal('followers')} style={{ cursor: isLocked ? 'default' : 'pointer' }}><strong>{userProfile.followers?.length || 0}</strong> followers</div>
             <div className="stat-item" onClick={() => !isLocked && openModal('following')} style={{ cursor: isLocked ? 'default' : 'pointer' }}><strong>{userProfile.following?.length || 0}</strong> following</div>
           </div>
+
+          <div className="profile-actions-row">
+            {isOwnProfile ? (
+              <>
+                <button className="action-btn" onClick={() => setIsEditing(true)}>Edit Profile</button>
+                <button className="action-btn" onClick={() => navigate('/archive')}>View archive</button>
+              </>
+            ) : (
+              <>
+                <button
+                  className={`action-btn primary ${userProfile.followers?.some((u) => (u._id || u) === currentUserId) ? "following" : ""}`}
+                  onClick={handleFollow}
+                >
+                  {userProfile.followers?.some((u) => (u._id || u) === currentUserId)
+                    ? "Unfollow"
+                    : userProfile.followRequests?.some((u) => (u._id || u) === currentUserId)
+                      ? "Requested"
+                      : userProfile.following?.some((u) => (u._id || u) === currentUserId)
+                        ? "Follow Back"
+                        : "Follow"}
+                </button>
+                <button className="action-btn" onClick={handleMessage}>Message</button>
+              </>
+            )}
+          </div>
+
+
         </div>
       </div>
 
-      <div className="profile-actions-row">
-        {isOwnProfile ? (
-          <>
-            <button className="action-btn" onClick={() => setIsEditing(true)}>Edit Profile</button>
-            <button className="action-btn" onClick={() => navigate('/archive')}>View archive</button>
-          </>
-        ) : (
-          <>
-            <button
-              className={`action-btn primary ${userProfile.followers?.some((u) => (u._id || u) === currentUserId) ? "following" : ""}`}
-              onClick={handleFollow}
-            >
-              {userProfile.followers?.some((u) => (u._id || u) === currentUserId)
-                ? "Unfollow"
-                : userProfile.followRequests?.some((u) => (u._id || u) === currentUserId)
-                  ? "Requested"
-                  : userProfile.following?.some((u) => (u._id || u) === currentUserId)
-                    ? "Follow Back"
-                    : "Follow"}
-            </button>
-            <button className="action-btn" onClick={handleMessage}>Message</button>
-          </>
-        )}
-      </div>
+
+
+
 
       {/* Highlights Section */}
       <div className="highlights-section">
@@ -450,6 +508,17 @@ const Profile = () => {
                   </label>
                 </div>
 
+                <div className="form-group" style={{ textAlign: 'center' }}>
+                  <label>Cover Photo</label>
+                  <div className="edit-avatar-preview" style={{ borderRadius: '8px', width: '100%', height: '100px' }}>
+                    {previewCover ? <img src={previewCover} alt="Cover Preview" /> : <div style={{ width: '100%', height: '100%', backgroundColor: '#ddd' }}></div>}
+                  </div>
+                  <label className="change-photo-btn">
+                    Change Cover
+                    <input type="file" onChange={handleCoverChange} style={{ display: 'none' }} />
+                  </label>
+                </div>
+
                 <div className="form-group">
                   <label>First Name</label>
                   <input className="form-input" value={editData.firstname} onChange={e => setEditData({ ...editData, firstname: e.target.value })} />
@@ -474,6 +543,10 @@ const Profile = () => {
                 <div className="form-actions">
                   <button type="button" className="action-btn" onClick={() => setIsEditing(false)}>Cancel</button>
                   <button type="submit" className="action-btn primary">Save</button>
+                </div>
+
+                <div className="danger-zone">
+                  <button type="button" className="danger-btn" onClick={handleDeleteAccount}>Delete Account</button>
                 </div>
               </form>
             </div>

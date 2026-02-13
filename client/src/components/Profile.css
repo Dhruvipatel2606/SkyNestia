@@ -30,14 +30,64 @@ body.dark-mode {
 }
 
 /* Header Section */
+/* Header Section */
+.profile-cover-section {
+    width: 100%;
+    height: 200px;
+    background-color: var(--button-bg);
+    margin-bottom: 20px;
+    /* Overlap with avatar */
+    border: 1px solid black;
+    border-radius: 30px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.profile-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .profile-header {
     display: flex;
     flex-direction: row;
     /* Horizontal */
     margin-bottom: 20px;
     /* Reduced bottom margin as buttons come next */
+    align-items: flex-end;
+    /* Align bottom for overlap */
+    position: relative;
+    padding-left: 20px;
+}
+
+.verified-badge {
+    color: var(--primary-blue);
+    margin-left: 5px;
+    display: flex;
     align-items: center;
-    /* Center vertically */
+}
+
+.danger-zone {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.danger-btn {
+    background-color: #ffdddd;
+    color: #cc0000;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.danger-btn:hover {
+    background-color: #ffcccc;
 }
 
 .profile-avatar-section {
@@ -70,46 +120,158 @@ body.dark-mode {
     padding-top: 0;
 }
 
+/* Avatar & Info Wrapper */
+.profile-header {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 20px;
+    align-items: flex-end;
+    /* Align bottom for overlap */
+    position: relative;
+    padding: 0 40px;
+    /* Add side padding */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.profile-avatar-section {
+    flex-grow: 0;
+    /* Changed from 1 */
+    margin-right: 30px;
+    display: flex;
+    justify-content: flex-start;
+    /* Left align */
+    width: auto;
+}
+
+.avatar-container {
+    width: 168px;
+    /* Larger avatar */
+    height: 168px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 5px solid var(--card-bg);
+    /* Thicker border matches card bg */
+    z-index: 5;
+    background-color: var(--card-bg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    top: -10px;
+    /* Slight lift */
+}
+
+.profile-info-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 10px;
+
+}
+
 /* Top Row: Username + Buttons */
 .info-top-row {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 8px;
+    /* Tighter spacing */
     flex-wrap: wrap;
-    /* Allow wrapping on small screens */
-    gap: 20px;
+    gap: 15px;
 }
 
 .username-text {
-    font-size: 20px;
-    /* Correct size */
-    font-weight: 400;
+    font-size: 32px;
+    /* Bigger, bolder name */
+    font-weight: 700;
     margin: 0;
     color: var(--text-primary);
-    line-height: 25px;
+    line-height: 1.2;
 }
 
-.profile-actions {
+.verified-badge {
+    color: var(--primary-blue);
+    margin-left: 8px;
+    font-size: 24px;
     display: flex;
-    gap: 8px;
     align-items: center;
+    filter: drop-shadow(0 2px 4px rgba(24, 119, 242, 0.2));
+}
+
+.profile-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 .action-btn {
+    /* background-color: var(--button-bg);
+    color: var(--text-primary);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 100px; */
     background-color: var(--button-bg);
     color: var(--text-primary);
-    width: 50%;
     border: none;
-    border-radius: 8px;
-    padding: 7px 16px;
+    border-radius: 10px;
+    /* slightly more curved */
+
+    /* Remove fixed width */
+    width: auto;
+
+    /* Controls button size */
+    padding: 10px 18px;
+
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
     cursor: pointer;
-    transition: background-color 0.1s ease;
+    transition: all 0.2s ease;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Makes it grow properly */
+    min-width: 120px;
+    max-width: 100%;
+
+    /* Prevent text breaking */
+    white-space: nowrap;
+
 }
 
 .action-btn:hover {
     background-color: var(--button-bg-hover);
+    transform: translateY(-1px);
+}
+
+.action-btn.primary {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background-color: var(--primary-blue-hover);
+}
+
+.action-btn.text-blue {
+    background: none;
+    color: var(--primary-blue);
+    padding: 0;
+    min-width: auto;
+}
+
+.action-btn.text-blue:hover {
+    text-decoration: underline;
+    background: none;
 }
 
 .settings-icon {
@@ -397,12 +559,14 @@ body.dark-mode {
 }
 
 .edit-avatar-preview {
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     overflow: hidden;
     margin: 0 auto 12px;
-    border: 1px solid var(--border-color);
+    border: 3px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    background-color: var(--button-bg);
 }
 
 .edit-avatar-preview img {

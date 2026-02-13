@@ -119,8 +119,8 @@ const Feed = () => {
           </div>
         )}
 
-        {loadingMore && <div className="loading-more">Loading more posts...</div>}
-        {!hasMore && posts.length > 0 && <div className="loading-more">You're all caught up!</div>}
+        {loadingMore && <div className="loading-more" style={{ textAlign: 'center', margin: '20px 0', color: '#666' }}>Loading more posts...</div>}
+        {!hasMore && posts.length > 0 && <div className="loading-more" style={{ textAlign: 'center', margin: '20px 0', color: '#666' }}>You're all caught up!</div>}
       </div>
 
       <div className="feed-sidebar">
