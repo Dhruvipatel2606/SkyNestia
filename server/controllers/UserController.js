@@ -2,6 +2,20 @@ import UserModel from "../models/userModel.js";
 import { getCache, setCache, deleteCache } from "../services/cacheServices.js";
 import { redisClient } from "../config/redis.js";
 
+// Register
+export const register = async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        if (!username || !email || !password) {
+            return res.status(401).json({ message: "All fields are required", success: false });
+        }
+        const user = await UserModel.create({ username, email, password });
+        res.status(201).json({ message: "User registered successfully", success: true });
+    } catch (error) {
+        res.status(500).json({ message: "Error registering user", error: error.message });
+    }
+}
+
 // Search Users
 export const searchUser = async (req, res) => {
     const query = req.query.q;
@@ -51,6 +65,13 @@ export const updateUserProfile = async (req, res) => {
             if (req.files.coverImage) {
                 updateData.coverPicture = req.files.coverImage[0].filename;
             }
+        }
+
+        // Handle nested privacy settings update if provided
+        if (req.body.privacySettings) {
+            // Ensure we merge with existing or overwrite carefully. 
+            // Mongoose might require dot notation for nested updates if not replacing whole object
+            // For now, assuming req.body.privacySettings is a complete object or we rely on Mongoose's merge
         }
 
         const updatedUser = await UserModel.findByIdAndUpdate(
@@ -376,5 +397,52 @@ export const rejectFollowRequest = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ message: "Error rejecting request", error: error.message });
+    }
+};
+
+// Request Verification
+export const requestVerification = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId);
+        if (user.isVerified) return res.status(400).json({ message: 'User already verified' });
+        if (user.verificationStatus === 'pending') return res.status(400).json({ message: 'Verification already pending' });
+
+        user.verificationStatus = 'pending';
+        // In a real app, handle document upload here
+        await user.save();
+
+        res.status(200).json({ message: 'Verification requested successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error requesting verification' });
+    }
+};
+
+// Deactivate Account
+export const deactivateAccount = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId);
+        user.accountStatus = 'deactivated';
+        user.deactivationDate = new Date();
+        await user.save();
+
+        res.clearCookie('refreshToken');
+        res.status(200).json({ message: 'Account deactivated successfully. Login to reactivate.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deactivating account' });
+    }
+};
+
+// Delete Account (Schedule)
+export const deleteAccount = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId);
+        user.accountStatus = 'deleted';
+        user.deactivationDate = new Date(); // 30 day grace period logic would be in a cron job
+        await user.save();
+
+        res.clearCookie('refreshToken');
+        res.status(200).json({ message: 'Account scheduled for deletion in 30 days.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting account' });
     }
 };

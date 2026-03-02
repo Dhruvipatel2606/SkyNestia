@@ -5,10 +5,24 @@ const MessageSchema = mongoose.Schema({
         type: String,
     },
     senderId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
     },
-    text: {
+    receiverId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
+    },
+    message: {
         type: String,
+        required: true,
+    },
+    isRead: {
+        type: Boolean,
+        default: false,
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false,
     },
 }, { timestamps: true });
 

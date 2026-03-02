@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
 const PostSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
-    caption: String,
-    image: String,
+    caption: { type: String, default: "" },
+    image: { type: String, required: true },
     images: { type: [String], default: [] },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
+    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comments' }],
     tags: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
         status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
@@ -22,5 +23,4 @@ const PostSchema = new mongoose.Schema({
     }
 }, { timestamps: true }
 );
-var Post = mongoose.model("Post", PostSchema);
-export default Post;
+export const Post = mongoose.model("Post", PostSchema);

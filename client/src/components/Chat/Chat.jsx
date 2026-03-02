@@ -10,7 +10,7 @@ const Chat = () => {
     // 1. Use global socket instead of local ref
     const socket = useSocket();
 
-    // ... rest of state
+    // 2. State Management
     const [chats, setChats] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [currentChat, setCurrentChat] = useState(null);
