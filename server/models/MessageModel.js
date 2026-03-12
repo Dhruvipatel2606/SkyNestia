@@ -24,6 +24,14 @@ const MessageSchema = mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    isCallLog: {
+        type: Boolean,
+        default: false,
+    },
+    callDuration: {
+        type: String,
+        default: null,
+    }
 }, { timestamps: true });
 
 const MessageModel = mongoose.model('Message', MessageSchema);

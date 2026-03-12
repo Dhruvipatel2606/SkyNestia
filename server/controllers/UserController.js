@@ -446,3 +446,45 @@ export const deleteAccount = async (req, res) => {
         res.status(500).json({ message: 'Error deleting account' });
     }
 };
+
+// Update App Usage Time
+export const updateAppUsage = async (req, res) => {
+    try {
+        const { date, timeSpent } = req.body; // timeSpent in seconds for this sync period
+        if (!date || timeSpent == null) {
+            return res.status(400).json({ message: 'Date and timeSpent are required' });
+        }
+
+        const user = await UserModel.findById(req.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const existingUsage = user.appUsage.find(usage => usage.date === date);
+
+        if (existingUsage) {
+            existingUsage.timeSpent += timeSpent;
+        } else {
+            user.appUsage.push({ date, timeSpent });
+        }
+
+        await user.save();
+        res.status(200).json({ message: 'App usage updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating app usage', error: error.message });
+    }
+};
+
+// Get User Activity (Login Count and App Usage)
+export const getUserActivity = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId).select('loginCount appUsage createdAt');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.status(200).json({
+            loginCount: user.loginCount,
+            appUsage: user.appUsage,
+            createdAt: user.createdAt
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching user activity', error: error.message });
+    }
+};

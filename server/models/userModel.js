@@ -57,8 +57,8 @@ const userSchema = new Schema({
     followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }], // Pending follow requests
 
     // --- Posts ---
-    posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post', ref: 'Post' }],
-    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post', ref: 'Post' }],
+    posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
 
     // --- Privacy & State Machine ---
     isPrivate: {
@@ -116,14 +116,17 @@ const userSchema = new Schema({
     },
     deactivationDate: { type: Date },
     lastLogin: { type: Date },
+    loginCount: {
+        type: Number,
+        default: 0
+    },
+    appUsage: [{
+        date: String, // YYYY-MM-DD format
+        timeSpent: { type: Number, default: 0 } // Time in seconds
+    }],
 
-    savedPosts: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: "Post",
-            default: [],
-        },
-    ],
+
+
 }, { timestamps: true });
 userSchema.index({ username: 'text' });
 

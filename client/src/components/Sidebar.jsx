@@ -119,7 +119,7 @@ const Sidebar = ({ isOpen, toggle }) => {
                         {!showAppearanceMenu ? (
                             <>
                                 <div className="more-item"><FiSettings className="more-icon" /> <span>Settings</span></div>
-                                <div className="more-item"><FiActivity className="more-icon" /> <span>Your activity</span></div>
+                                <Link to="/activity" className="more-item" style={{ textDecoration: 'none', color: 'inherit' }}><FiActivity className="more-icon" /> <span>Your activity</span></Link>
                                 <Link to="/saved" className="more-item" style={{ textDecoration: 'none', color: 'inherit' }}><FiBookmark className="more-icon" /> <span>Saved</span></Link>
                                 <div className="more-item" onClick={() => setShowAppearanceMenu(true)}><FiMoon className="more-icon" /> <span>Switch appearance</span></div>
                                 <div className="more-item"><FiAlertCircle className="more-icon" /> <span>Report a problem</span></div>

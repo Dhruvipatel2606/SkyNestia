@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount } from '../controllers/UserController.js';
+import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount, updateAppUsage, getUserActivity } from '../controllers/UserController.js';
 import { upload } from '../controllers/PostController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import UserModel from '../models/userModel.js';
@@ -64,6 +64,10 @@ router.put('/requests/:id/reject', authMiddleware, rejectFollowRequest);
 router.post('/verification-request', authMiddleware, requestVerification);
 router.put('/deactivate', authMiddleware, deactivateAccount);
 router.delete('/delete', authMiddleware, deleteAccount);
+
+// Activity
+router.put('/activity/usage', authMiddleware, updateAppUsage);
+router.get('/activity', authMiddleware, getUserActivity);
 
 // Generic routes
 router.get('/:id', authMiddleware, getUserProfile); // get user profile - Wildcard matching

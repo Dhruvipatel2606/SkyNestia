@@ -1,8 +1,8 @@
-const { checkText } = require("./textApiChecker");
-const { checkSpam } = require("./spamChecker");
-const { checkPrivacy } = require("./privacyChecker");
-const { checkImageSafety } = require("./imageChecker");
-const { APPROVE_RESPONSE } = require("./categories");
+import { checkText } from "./textApiChecker.js";
+import { checkSpam } from "./spamChecker.js";
+import { checkPrivacy } from "./privacyChecker.js";
+import { checkImageSafety } from "./imageChecker.js";
+import { APPROVE_RESPONSE } from "./categories.js";
 
 async function auditPost({ text, imagePath }) {
 
@@ -23,4 +23,4 @@ async function auditPost({ text, imagePath }) {
     return APPROVE_RESPONSE;
 }
 
-module.exports = { auditPost };
+export { auditPost };

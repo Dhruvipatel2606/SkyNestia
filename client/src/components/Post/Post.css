@@ -247,6 +247,11 @@ body.dark-mode .option-item.delete {
     display: block;
 }
 
+.tag-pending {
+    opacity: 0.5;
+    font-style: italic;
+}
+
 .tagged-user-link:hover {
     text-decoration: underline;
     color: var(--secondary-color);

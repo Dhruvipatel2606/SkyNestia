@@ -27,6 +27,7 @@ export default function ChatLayout({
                 setSendMessage={setSendMessage}
                 receiveMessage={receiveMessage}
                 setChat={setCurrentChat} // Pass handler for back button
+                onlineUsers={onlineUsers}
             />
         </div>
     );

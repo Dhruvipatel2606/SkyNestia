@@ -1,0 +1,173 @@
+.activity-page {
+    flex: 1;
+    background: transparent;
+    color: var(--text-main);
+    padding: 30px;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.activity-header {
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.activity-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.activity-card {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.activity-icon-container {
+    background-color: rgba(255, 255, 255, 0.1);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.activity-icon {
+    font-size: 24px;
+    color: var(--text-main);
+}
+
+.activity-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.activity-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
+}
+
+.activity-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin: auto 0 0 0;
+}
+
+/* Light mode overrides if needed */
+body:not(.dark-mode) .activity-card {
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+body:not(.dark-mode) .activity-icon-container {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+body:not(.dark-mode) .activity-value {
+    color: #262626;
+}
+
+@media (max-width: 768px) {
+    .activity-page {
+        padding: 20px 15px;
+    }
+
+    .activity-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Activity Chart */
+.chart-section {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 20px;
+}
+
+.chart-header {
+    margin-bottom: 20px;
+}
+
+.chart-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.chart-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 180px;
+    gap: 10px;
+    padding-top: 30px;
+}
+
+.chart-bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.chart-bar {
+    width: 60%;
+    max-width: 40px;
+    background-color: #0095f6;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease-out;
+    position: relative;
+}
+
+.chart-bar:hover::after {
+    content: attr(data-time);
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+.chart-label {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+body:not(.dark-mode) .chart-section {
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}

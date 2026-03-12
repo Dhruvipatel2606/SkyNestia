@@ -129,6 +129,7 @@ export const loginUser = async (req, res) => {
 
         user.refreshToken = refreshToken;
         user.lastLogin = new Date();
+        user.loginCount = (user.loginCount || 0) + 1;
         await user.save();
 
         res.cookie('refreshToken', refreshToken, {

@@ -12,11 +12,15 @@ import TagRequests from './components/TagRequests'
 import PostDetails from './components/PostDetails'
 import Sidebar from './components/Sidebar'
 import SavedPosts from './components/SavedPosts'
+import YourActivity from './components/YourActivity'
 import { SocketProvider } from './SocketContext'
+import useAppUsageTracker from './utils/useAppUsageTracker'
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useAppUsageTracker(!!user);
 
   // Restore session from sessionStorage (Persists on refresh, clears on close)
   useEffect(() => {
@@ -55,6 +59,7 @@ export default function App() {
             <Route path="/tag-requests" element={user ? <TagRequests /> : <Login setUser={setUser} />} />
             <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
             <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
+            <Route path="/activity" element={user ? <YourActivity /> : <Login setUser={setUser} />} />
           </Routes>
         </main>
       </div>

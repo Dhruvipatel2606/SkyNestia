@@ -1,20 +1,34 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { addMessage, getMessages } from "../../api/MessageRequests";
 import { getUser } from "../../api/UserRequests";
 import API from "../../api.js";
 import "./Chat.css";
-import { useSocket } from "../../SocketContext"; // Import hook
+import { useSocket } from "../../SocketContext";
 import { importKey, deriveSharedKey, encryptMessage, decryptMessage } from '../../utils/Encryption';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiVideo, FiPhone } from 'react-icons/fi';
+import VideoCall from "./VideoCall";
+import IncomingCall from "./IncomingCall";
 
-const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat }) => {
-    const socket = useSocket(); // Use global socket
+const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, onlineUsers }) => {
+    const socket = useSocket();
     const [userData, setUserData] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [sharedKey, setSharedKey] = useState(null);
-    const [isTyping, setIsTyping] = useState(false); // Typing state
+    const [isTyping, setIsTyping] = useState(false);
     const scroll = useRef();
+
+    // Video Call States
+    const [activeCall, setActiveCall] = useState(false);
+    const [incomingCall, setIncomingCall] = useState(false);
+
+    // Check if the other user is online
+    const checkOnlineStatus = (chat) => {
+        const chatMember = chat?.members?.find((member) => member !== currentUser);
+        const online = onlineUsers?.find((user) => user.userId === chatMember);
+        return online ? true : false;
+    };
+    const isOnline = checkOnlineStatus(chat);
 
     // Fetching data for header and setting up Encryption
     useEffect(() => {
@@ -49,13 +63,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
         const fetchMessages = async () => {
             try {
                 const { data } = await getMessages(chat._id);
-                // Always set raw messages first, then attempt decryption
-                // This prevents "flicker" of empty state
-
                 if (sharedKey) {
                     const decryptedPromises = data.map(async (msg) => {
                         try {
-                            // If it's valid JSON with iv/data, decrypt it. Otherwise keep original text.
                             const decText = await decryptMessage(sharedKey, msg.text);
                             return { ...msg, text: decText };
                         } catch (e) {
@@ -65,7 +75,6 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
                     const decryptedMsgs = await Promise.all(decryptedPromises);
                     setMessages(decryptedMsgs);
                 } else {
-                    // Start with raw messages, but mark them as potentially pending decryption
                     setMessages(data);
                 }
             } catch (error) {
@@ -83,17 +92,15 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
                     const decText = await decryptMessage(sharedKey, receiveMessage.text);
                     setMessages((prev) => [...prev, { ...receiveMessage, text: decText }]);
                 } else {
-                    // Temporarily show encrypted/raw, fetchMessages will likely run again when key is ready
                     setMessages((prev) => [...prev, receiveMessage]);
                 }
-            }
+            };
             processIncoming();
         }
-    }, [receiveMessage])
+    }, [receiveMessage]);
 
     const handleSend = async (e) => {
         e.preventDefault();
-
         if (!newMessage.trim()) return;
 
         let messageParams = {
@@ -102,11 +109,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
         };
 
         if (sharedKey) {
-            // Encrypted Mode
             const encryptedText = await encryptMessage(sharedKey, newMessage);
             messageParams.text = encryptedText;
         } else {
-            // Fallback Mode (Legacy)
             console.warn("Saving unencrypted message because recipient has no public key.");
             messageParams.text = newMessage;
         }
@@ -125,7 +130,7 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
 
     useEffect(() => {
         scroll.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages])
+    }, [messages]);
 
     // Typing Listeners
     useEffect(() => {
@@ -136,10 +141,8 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
         const handleStopTyping = (data) => {
             if (data.chatId === chat?._id && data.senderId !== currentUser) setIsTyping(false);
         };
-
         socket.on("typing", handleTyping);
         socket.on("stop-typing", handleStopTyping);
-
         return () => {
             socket.off("typing", handleTyping);
             socket.off("stop-typing", handleStopTyping);
@@ -148,12 +151,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
 
     const handleInput = (e) => {
         setNewMessage(e.target.value);
-
         if (!socket || !chat) return;
         const receiverId = chat.members.find((id) => id !== currentUser);
-
         socket.emit("typing", { receiverId, senderId: currentUser, chatId: chat._id });
-
         clearTimeout(window.typingTimer);
         window.typingTimer = setTimeout(() => {
             socket.emit("stop-typing", { receiverId, senderId: currentUser, chatId: chat._id });
@@ -167,57 +167,165 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat })
         return `${API.defaults.baseURL.replace('/api', '')}/images/${picName}`;
     };
 
+    // ===== VIDEO CALL HANDLERS =====
+    const handleStartCall = () => {
+        setActiveCall(true);
+    };
+
+    const handleEndCall = useCallback(async (duration) => {
+        setActiveCall(false);
+        const defaultLabel = "📹 Video call ended";
+        
+        let messageParams = {
+            senderId: currentUser,
+            chatId: chat?._id,
+            isCallLog: true,
+            callDuration: duration,
+        };
+
+        try {
+            if (sharedKey) {
+                const encryptedText = await encryptMessage(sharedKey, defaultLabel);
+                messageParams.text = encryptedText;
+            } else {
+                messageParams.text = defaultLabel;
+            }
+
+            const receiverId = chat?.members?.find((id) => id !== currentUser);
+            setSendMessage({ ...messageParams, receiverId, _id: `temp-${Date.now()}`, createdAt: new Date().toISOString() });
+
+            const { data } = await addMessage(messageParams);
+            setMessages((prev) => [...prev, { ...data, text: defaultLabel }]);
+        } catch (error) {
+            console.error("Failed to save or encrypt call log", error);
+            // Fallback to local append if save/encrypt fails to keep UX smooth
+            setMessages((prev) => [...prev, { ...messageParams, text: defaultLabel, _id: `call-${Date.now()}`, createdAt: new Date().toISOString() }]);
+        }
+    }, [currentUser, chat, sharedKey, setSendMessage]);
+
+    const handleTriggerIncoming = () => {
+        setIncomingCall(true);
+    };
+
+    const handleAcceptIncoming = () => {
+        setIncomingCall(false);
+        setActiveCall(true);
+    };
+
+    const handleDeclineIncoming = () => {
+        setIncomingCall(false);
+    };
+
+    const displayName = userData?.firstname || userData?.username || "User";
+
     return (
         <div className="chatWindow">
             {chat ? (
                 <>
-
+                    {/* Chat Header */}
                     <div className="chat-header">
-                        <div className="follower">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {/* Back Button for Mobile */}
-                                <div
-                                    className="back-arrow-chat"
-                                    onClick={() => setChat(null)}
-                                    style={{ cursor: 'pointer', marginRight: '5px' }} // Controlled by CSS
-                                >
-                                    <FiArrowLeft size={24} />
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <img
-                                        src={getProfilePic(userData)}
-                                        alt=""
-                                        className="followerImage"
-                                        style={{ width: "50px", height: "50px", borderRadius: "50%" }}
-                                    />
-                                    <div className="name" style={{ fontSize: "0.9rem", display: 'flex', flexDirection: 'column' }}>
-                                        <span>
-                                            {userData?.firstname || userData?.username} {userData?.lastname || ""}
-                                        </span>
-                                        {isTyping && <span style={{ fontSize: "0.7rem", color: "#0095f6" }}>Typing...</span>}
-                                    </div>
-                                </div>
+                        <div className="chat-header-info">
+                            {/* Back Button for Mobile */}
+                            <div
+                                className="back-arrow-chat"
+                                onClick={() => setChat(null)}
+                            >
+                                <FiArrowLeft size={22} />
+                            </div>
+                            <img
+                                src={getProfilePic(userData)}
+                                alt=""
+                                className="chat-header-img"
+                            />
+                            <div className="chat-header-name">
+                                <span className="name">{displayName} {userData?.lastname || ""}</span>
+                                {isTyping ? (
+                                    <span className="typing-indicator">typing...</span>
+                                ) : isOnline ? (
+                                    <span className="online-text">Active now</span>
+                                ) : (
+                                    <span className="offline-text" style={{ fontSize: '0.75rem', color: '#8e8e8e' }}>Offline</span>
+                                )}
                             </div>
                         </div>
+                        <div className="chat-header-actions">
+                            <button
+                                className="header-action-btn phone-btn"
+                                onClick={handleTriggerIncoming}
+                                title="Simulate Incoming Call"
+                            >
+                                <FiPhone />
+                            </button>
+                            <button
+                                className="header-action-btn video-call-btn"
+                                onClick={handleStartCall}
+                                title="Start Video Call"
+                                id="start-video-call-btn"
+                            >
+                                <FiVideo />
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Messages */}
                     <div className="chat-body">
                         {messages.map((message) => (
-                            <div
-                                ref={scroll}
-                                className={
-                                    message.senderId === currentUser ? "message own" : "message"
-                                }
-                                key={message._id || Math.random()}
-                            >
-                                <span>{message.text}</span>
-                                <span className="time">{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
+                            message.isCallLog ? (
+                                <div className="message call-history" key={message._id} ref={scroll}>
+                                    <span className="call-history-icon">📹</span>
+                                    <div className="call-history-details">
+                                        <span className="call-history-title">Video Call</span>
+                                        <span className="call-history-sub">{message.callDuration || "Ended"}</span>
+                                    </div>
+                                    <span className="time">
+                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div
+                                    ref={scroll}
+                                    className={message.senderId === currentUser ? "message own" : "message"}
+                                    key={message._id || Math.random()}
+                                >
+                                    <span>{message.text}</span>
+                                    <span className="time">
+                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                            )
                         ))}
                     </div>
+
+                    {/* Input */}
                     <div className="chat-sender">
-                        <input value={newMessage} onChange={handleInput} className="chat-input" placeholder="Type a message... (E2EE)" />
+                        <input
+                            value={newMessage}
+                            onChange={handleInput}
+                            className="chat-input"
+                            placeholder="Message..."
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
+                        />
                         <button className="send-button" onClick={handleSend}>Send</button>
                     </div>
+
+                    {/* Video Call Overlay */}
+                    {activeCall && (
+                        <VideoCall
+                            userData={userData}
+                            currentUserAvatar={getProfilePic({ profilePicture: null })}
+                            onEndCall={handleEndCall}
+                        />
+                    )}
+
+                    {/* Incoming Call Notification */}
+                    {incomingCall && (
+                        <IncomingCall
+                            callerName={displayName}
+                            callerAvatar={getProfilePic(userData)}
+                            onAccept={handleAcceptIncoming}
+                            onDecline={handleDeclineIncoming}
+                        />
+                    )}
                 </>
             ) : (
                 <div className="chatEmpty">

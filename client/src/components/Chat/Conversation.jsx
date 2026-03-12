@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getUser } from "../../api/UserRequests";
+import API from "../../api.js";
 
 const Conversation = ({ data, currentUserId, online }) => {
     const [userData, setUserData] = useState(null);
@@ -18,25 +19,37 @@ const Conversation = ({ data, currentUserId, online }) => {
         getUserData();
     }, [data, currentUserId]);
 
+    const getProfilePic = (user) => {
+        if (!user?.profilePicture) return "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
+        if (typeof user.profilePicture === 'string' && user.profilePicture.startsWith('http')) return user.profilePicture;
+        const picName = typeof user.profilePicture === 'string' ? user.profilePicture.split('/').pop() : "";
+        return `${API.defaults.baseURL.replace('/api', '')}/images/${picName}`;
+    };
+
+    // Simulate unread count (random for demo — in production, this comes from backend)
+    const [unread] = useState(() => Math.random() > 0.6 ? Math.floor(Math.random() * 5) + 1 : 0);
+
     return (
-        <>
-            <div className="conversation">
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    {online && <div className="online-dot"></div>}
+        <div className="conversation">
+            <div className="follower">
+                <div style={{ position: 'relative' }}>
                     <img
-                        src={userData?.profilePicture ? `http://localhost:5000/images/${userData.profilePicture}` : "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png"}
+                        src={getProfilePic(userData)}
                         alt=""
-                        className="followerImage"
-                        style={{ width: "50px", height: "50px", borderRadius: "50%" }}
                     />
-                    <div className="name" style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column' }}>
-                        <span>{userData?.firstname || userData?.username} {userData?.lastname || ""}</span>
-                        <span style={{ color: online ? "#51e200" : "" }}>{online ? "Online" : "Offline"}</span>
-                    </div>
+                    {online && <div className="online-dot"></div>}
                 </div>
+                <div className="convo-text">
+                    <span className="name">
+                        {userData?.firstname || userData?.username} {userData?.lastname || ""}
+                    </span>
+                    <span className="status">
+                        {online ? "Active now" : "Tap to chat"}
+                    </span>
+                </div>
+                {unread > 0 && <span className="unread-badge">{unread}</span>}
             </div>
-            <hr style={{ width: "85%", border: "0.1px solid #ececec" }} />
-        </>
+        </div>
     );
 };
 
