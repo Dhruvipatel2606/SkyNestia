@@ -16,6 +16,7 @@ import ChatRoute from './routes/ChatRoute.js';
 import MessageRoute from './routes/MessageRoute.js';
 import CommentRoute from './routes/CommentRoute.js';
 import NotificationRoute from './routes/NotificationRoute.js';
+import AdminRoute from './routes/AdminRoute.js';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/chat', ChatRoute);
 app.use('/api/message', MessageRoute);
 app.use('/api/comment', CommentRoute);
 app.use('/api/notification', NotificationRoute);
+app.use('/api/admin', AdminRoute);
 
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);

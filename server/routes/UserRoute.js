@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount, updateAppUsage, getUserActivity } from '../controllers/UserController.js';
+import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount, updateAppUsage, getUserActivity, changePassword } from '../controllers/UserController.js';
 import { upload } from '../controllers/PostController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import UserModel from '../models/userModel.js';
@@ -62,6 +62,7 @@ router.put('/requests/:id/reject', authMiddleware, rejectFollowRequest);
 
 // Account Settings
 router.post('/verification-request', authMiddleware, requestVerification);
+router.post('/change-password', authMiddleware, changePassword);
 router.put('/deactivate', authMiddleware, deactivateAccount);
 router.delete('/delete', authMiddleware, deleteAccount);
 

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { OAuth2Client } from 'google-auth-library';
+import sendEmail from '../utils/sendEmail.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -288,5 +289,108 @@ export const verify2FA = async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ message: 'Error verifying 2FA' });
+    }
+};
+
+// Forgot Password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email is required' });
+
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Generate 6 digit OTP
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Save OTP to user (expires in 10 minutes)
+        user.otp = {
+            code: otpCode,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        };
+        await user.save();
+
+        // Send Email
+        const message = `Your password reset OTP is: ${otpCode}. It expires in 10 minutes.`;
+        await sendEmail({
+            to: user.email,
+            subject: 'SkyNestia Password Reset OTP',
+            text: message
+        });
+
+        res.status(200).json({ message: 'OTP sent to email successfully' });
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ message: 'Error processing forgot password request' });
+    }
+};
+
+// Verify OTP
+export const verifyOTP = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
+
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (!user.otp || !user.otp.code) {
+            return res.status(400).json({ message: 'No OTP requested for this user' });
+        }
+
+        if (user.otp.code !== otp) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        if (new Date() > new Date(user.otp.expiresAt)) {
+            user.otp = undefined; // Clear expired OTP
+            await user.save();
+            return res.status(400).json({ message: 'OTP has expired' });
+        }
+
+        res.status(200).json({ message: 'OTP verified successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error verifying OTP' });
+    }
+};
+
+// Reset Password
+export const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+        }
+
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (!user.otp || !user.otp.code) {
+            return res.status(400).json({ message: 'No OTP requested for this user' });
+        }
+
+        if (user.otp.code !== otp) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        if (new Date() > new Date(user.otp.expiresAt)) {
+            user.otp = undefined; // Clear expired OTP
+            await user.save();
+            return res.status(400).json({ message: 'OTP has expired' });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update user
+        user.password = hashedPassword;
+        user.otp = undefined; // Clear OTP after successful reset
+        await user.save();
+
+        res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error resetting password' });
     }
 };

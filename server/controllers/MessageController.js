@@ -5,7 +5,7 @@ export const addMessage = async (req, res) => {
     const message = new MessageModel({
         chatId,
         senderId,
-        text, // For call logs, either "Video Call" or the encrypted version
+        text, // Correctly matches the fixed schema's "text" field
         isCallLog: isCallLog || false,
         callDuration: callDuration || null
     });

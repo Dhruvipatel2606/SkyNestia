@@ -118,7 +118,12 @@ const Sidebar = ({ isOpen, toggle }) => {
                     <div className={`more-menu ${!isOpen ? 'collapsed-menu' : ''}`}>
                         {!showAppearanceMenu ? (
                             <>
-                                <div className="more-item"><FiSettings className="more-icon" /> <span>Settings</span></div>
+                                {currentUser?.isAdmin && (
+                                    <Link to="/admin" className="more-item" style={{ textDecoration: 'none', color: 'var(--blue)', fontWeight: 'bold' }}>
+                                        <FiActivity className="more-icon" /> <span>Admin Panel</span>
+                                    </Link>
+                                )}
+                                <Link to="/settings" className="more-item" style={{ textDecoration: 'none', color: 'inherit' }}><FiSettings className="more-icon" /> <span>Settings</span></Link>
                                 <Link to="/activity" className="more-item" style={{ textDecoration: 'none', color: 'inherit' }}><FiActivity className="more-icon" /> <span>Your activity</span></Link>
                                 <Link to="/saved" className="more-item" style={{ textDecoration: 'none', color: 'inherit' }}><FiBookmark className="more-icon" /> <span>Saved</span></Link>
                                 <div className="more-item" onClick={() => setShowAppearanceMenu(true)}><FiMoon className="more-icon" /> <span>Switch appearance</span></div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
 import Login from './components/Login'
 import Register from './components/Register'
+import ForgotPassword from './components/ForgotPassword'
 import Dashboard from './components/Dashboard'
 import Feed from './components/Feed'
 import CreatePost from './components/CreatePost'
@@ -12,7 +13,9 @@ import TagRequests from './components/TagRequests'
 import PostDetails from './components/PostDetails'
 import Sidebar from './components/Sidebar'
 import SavedPosts from './components/SavedPosts'
+import Settings from './components/Settings'
 import YourActivity from './components/YourActivity'
+import AdminPanel from './components/AdminPanel'
 import { SocketProvider } from './SocketContext'
 import useAppUsageTracker from './utils/useAppUsageTracker'
 
@@ -49,6 +52,7 @@ export default function App() {
             <Route path="/" element={<Login setUser={setUser} />} />
             <Route path="/login" element={<Login setUser={setUser} />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/dashboard" element={user ? <Dashboard /> : <Login setUser={setUser} />} />
             <Route path="/feed" element={user ? <Feed /> : <Login setUser={setUser} />} />
             <Route path="/chat" element={user ? <Chat /> : <Login setUser={setUser} />} />
@@ -58,6 +62,8 @@ export default function App() {
             <Route path="/followers/:id" element={user ? <Followers /> : <Login setUser={setUser} />} />
             <Route path="/tag-requests" element={user ? <TagRequests /> : <Login setUser={setUser} />} />
             <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
+            <Route path="/settings" element={user ? <Settings /> : <Login setUser={setUser} />} />
+            <Route path="/admin" element={user ? <AdminPanel /> : <Login setUser={setUser} />} />
             <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
             <Route path="/activity" element={user ? <YourActivity /> : <Login setUser={setUser} />} />
           </Routes>

@@ -6,7 +6,10 @@ import {
     refreshAccessToken,
     logoutUser,
     setup2FA,
-    verify2FA
+    verify2FA,
+    forgotPassword,
+    verifyOTP,
+    resetPassword
 } from '../controllers/AuthController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -23,5 +26,10 @@ router.post('/logout', logoutUser);
 // Protected Auth Routes
 router.post('/2fa/setup', authMiddleware, setup2FA);
 router.post('/2fa/verify', authMiddleware, verify2FA);
+
+// Password Reset Routes
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp', verifyOTP);
+router.post('/reset-password', resetPassword);
 
 export default router; 

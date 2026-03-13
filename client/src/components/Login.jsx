@@ -79,7 +79,8 @@ export default function Login({ setUser }) {
                 </button>
             </form>
 
-            <div className="footer-note">
+            <div className="footer-note" style={{marginTop: '15px'}}>
+                <Link to="/forgot-password" style={{display: 'block', marginBottom: '10px'}}>Forgot Password?</Link>
                 Don't have an account? <Link to="/register">Create one</Link>
             </div>
         </div>

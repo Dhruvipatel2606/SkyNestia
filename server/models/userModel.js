@@ -16,6 +16,11 @@ const userSchema = new Schema({
         trim: true,
         lowercase: true
     },
+    phone: {
+        type: String,
+        required: false,
+        trim: true
+    },
     password: {
         type: String,
         required: function () { return !this.googleId; }, // Password required only if not using Google Auth
