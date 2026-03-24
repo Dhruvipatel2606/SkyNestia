@@ -758,6 +758,13 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+}
+
+.remote-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .video-remote-avatar {
@@ -773,6 +780,63 @@
 @keyframes float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-15px); }
+}
+
+/* Audio Call View */
+.audio-call-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.call-status-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    animation: typingFade 1.5s ease infinite;
+}
+
+/* Audio Waveform */
+.audio-wave {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    margin-top: 16px;
+}
+
+.audio-wave span {
+    display: block;
+    width: 4px;
+    background: linear-gradient(180deg, #833ab4, #5851db);
+    border-radius: 2px;
+    animation: waveAnim 1s ease-in-out infinite;
+}
+
+.audio-wave span:nth-child(1) { height: 12px; animation-delay: 0s; }
+.audio-wave span:nth-child(2) { height: 24px; animation-delay: 0.15s; }
+.audio-wave span:nth-child(3) { height: 36px; animation-delay: 0.3s; }
+.audio-wave span:nth-child(4) { height: 24px; animation-delay: 0.45s; }
+.audio-wave span:nth-child(5) { height: 12px; animation-delay: 0.6s; }
+
+@keyframes waveAnim {
+    0%, 100% { transform: scaleY(0.5); opacity: 0.6; }
+    50% { transform: scaleY(1.2); opacity: 1; }
+}
+
+/* Connecting Pulse */
+.call-connecting-pulse {
+    width: 12px;
+    height: 12px;
+    background: #34c759;
+    border-radius: 50%;
+    animation: connectPulse 1.5s ease infinite;
+}
+
+@keyframes connectPulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 /* Top Action Bar */
@@ -809,31 +873,14 @@
     margin-top: 4px;
 }
 
-.video-min-btn {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border: none;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.video-min-btn:hover { background: rgba(255, 255, 255, 0.3); }
-
 /* Picture-in-Picture Local Video */
 .video-pip {
     position: absolute;
     bottom: 140px;
     right: 24px;
-    width: 120px;
-    height: 180px;
-    background: #333;
+    width: 140px;
+    height: 200px;
+    background: #1a1a1a;
     border-radius: 16px;
     overflow: hidden;
     z-index: 10;
@@ -841,10 +888,21 @@
     border: 2px solid rgba(255, 255, 255, 0.15);
 }
 
-.pip-avatar {
+.pip-video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.pip-camera-off {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2a2a2a;
+    color: rgba(255,255,255,0.5);
 }
 
 /* Bottom Controls Dock */
@@ -899,9 +957,46 @@
     background: #e6352b;
 }
 
-.incoming-btn.decline:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 24px rgba(239, 68, 68, 0.55);
+/* ===== Incoming Call Improvements ===== */
+.incoming-avatar-ring {
+    position: relative;
+    width: 154px;
+    height: 154px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.incoming-avatar-ring::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: incomingRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes incomingRingPulse {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.08); opacity: 0.7; }
+}
+
+.call-action-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.call-action-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
 /* ===== BACK ARROW ===== */

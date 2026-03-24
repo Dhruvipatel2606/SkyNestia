@@ -60,6 +60,8 @@ const userSchema = new Schema({
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
     followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }], // Pending follow requests
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }], // Users blocked by this user
+    restrictedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }], // Users restricted by this user
 
     // --- Posts ---
     posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
@@ -95,6 +97,15 @@ const userSchema = new Schema({
         required: false,
     },
 
+    // --- Admin Controls ---
+    banReason: { type: String, default: '' },
+    restrictionReason: { type: String, default: '' },
+    restrictions: {
+        canPost: { type: Boolean, default: true },
+        canComment: { type: Boolean, default: true },
+        canMessage: { type: Boolean, default: true }
+    },
+
     // --- Security ---
     refreshToken: {
         type: String,
@@ -116,7 +127,7 @@ const userSchema = new Schema({
     // --- Lifecycle ---
     accountStatus: {
         type: String,
-        enum: ['active', 'deactivated', 'suspended', 'deleted'],
+        enum: ['active', 'deactivated', 'suspended', 'banned', 'deleted'],
         default: 'active'
     },
     deactivationDate: { type: Date },

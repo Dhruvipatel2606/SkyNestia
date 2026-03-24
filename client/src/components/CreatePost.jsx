@@ -26,6 +26,7 @@ const CreatePost = () => {
     const [musicFile, setMusicFile] = useState(null);
     const [musicName, setMusicName] = useState('');
     const [visibility, setVisibility] = useState('public');
+    const [scheduledDate, setScheduledDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [generating, setGenerating] = useState(false);
@@ -355,7 +356,7 @@ const CreatePost = () => {
         setCaption(prev => prev + emojiObject.emoji);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (postStatus = 'published') => {
         if (files.length === 0 && !musicFile && !musicUrl && !caption.trim()) return;
         setLoading(true);
         setError(null);
@@ -364,6 +365,11 @@ const CreatePost = () => {
         formData.append('description', caption);
         formData.append('location', location);
         formData.append('visibility', visibility);
+        formData.append('status', postStatus);
+
+        if (postStatus === 'scheduled' && scheduledDate) {
+            formData.append('scheduledDate', new Date(scheduledDate).toISOString());
+        }
 
         // Pass tags as JSON string
         const tagIds = taggedUsers.map(u => u._id);
@@ -409,14 +415,23 @@ const CreatePost = () => {
                         {step === 0 ? 'New Post' : step === 1 ? 'Capture' : step === 2 ? 'Edit' : 'Details'}
                     </h2>
                     {step === 3 ? (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={loading || (files.length === 0 && !musicFile && !musicUrl && !caption.trim())}
-                            className="btn-primary"
-                            style={{ padding: '8px 20px', borderRadius: '20px' }}
-                        >
-                            {loading ? 'Checking Behavior...' : 'Share'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={() => handleSubmit('draft')}
+                                disabled={loading || (files.length === 0 && !musicFile && !musicUrl && !caption.trim())}
+                                style={{ padding: '8px 15px', borderRadius: '20px', background: '#e0f2fe', color: '#0095f6', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                                Draft
+                            </button>
+                            <button
+                                onClick={() => handleSubmit(scheduledDate ? 'scheduled' : 'published')}
+                                disabled={loading || (files.length === 0 && !musicFile && !musicUrl && !caption.trim()) || (scheduledDate && new Date(scheduledDate) <= new Date())}
+                                className="btn-primary"
+                                style={{ padding: '8px 20px', borderRadius: '20px' }}
+                            >
+                                {loading ? 'Checking...' : (scheduledDate ? 'Schedule' : 'Share')}
+                            </button>
+                        </div>
                     ) : (step === 2 && files.length > 0) ? (
                         <button onClick={handleNext} style={{ color: '#0095f6', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>Next</button>
                     ) : <div style={{ width: 24 }} />}
@@ -904,6 +919,19 @@ const CreatePost = () => {
                         <div className="input-group">
                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Location</label>
                             <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Add Location" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                        </div>
+                        
+                        <div className="input-group" style={{ marginBottom: '20px' }}>
+                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Schedule Post (Optional)</label>
+                            <input 
+                                type="datetime-local" 
+                                value={scheduledDate} 
+                                onChange={e => setScheduledDate(e.target.value)} 
+                                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
+                            />
+                            {scheduledDate && new Date(scheduledDate) <= new Date() && (
+                                <p style={{ color: 'red', fontSize: '12px', marginTop: '5px' }}>Scheduled date must be in the future.</p>
+                            )}
                         </div>
                     </div>
                 )

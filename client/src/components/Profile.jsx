@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { createChat } from "../api/ChatRequests";
 import API from "../api.js";
 import Post from "./Post/Post";
-import { FiGrid, FiUser } from "react-icons/fi";
+import { FiGrid, FiUser, FiEdit, FiCalendar } from "react-icons/fi";
 import "./Profile.css";
 
 const Profile = () => {
@@ -35,6 +35,10 @@ const Profile = () => {
   // Tagging & Post View State
   const [pendingTags, setPendingTags] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
+  
+  const [activeTab, setActiveTab] = useState('posts');
+  const [drafts, setDrafts] = useState([]);
+  const [scheduled, setScheduled] = useState([]);
 
   // User List Modal State
   const [activeModal, setActiveModal] = useState(null); // 'followers' or 'following'
@@ -92,6 +96,8 @@ const Profile = () => {
       API.get('/post/tags/pending')
         .then(res => setPendingTags(res.data))
         .catch(err => console.error("Failed to fetch pending tags", err));
+      API.get('/post/drafts').then(res => setDrafts(res.data)).catch(err => console.error("Failed drafts", err));
+      API.get('/post/scheduled').then(res => setScheduled(res.data)).catch(err => console.error("Failed scheduled", err));
     }
   }, [profileId, isOwnProfile]);
 
@@ -217,6 +223,54 @@ const Profile = () => {
     }
   };
 
+  const handleBlock = async () => {
+    if (window.confirm("Are you sure you want to block/unblock this user?")) {
+      try {
+        const isCurrentlyBlocked = currentUser?.blockedUsers?.includes(profileId);
+        const action = isCurrentlyBlocked ? 'unblock' : 'block';
+        await API.put(`/user/${profileId}/${action}`);
+        
+        let updatedCurrentUser = { ...currentUser };
+        if (action === 'block') {
+            updatedCurrentUser.blockedUsers = [...(updatedCurrentUser.blockedUsers || []), profileId];
+        } else {
+            updatedCurrentUser.blockedUsers = (updatedCurrentUser.blockedUsers || []).filter(id => id !== profileId);
+        }
+        localStorage.setItem('user', JSON.stringify(updatedCurrentUser));
+        sessionStorage.setItem('user', JSON.stringify(updatedCurrentUser));
+        
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to block/unblock");
+      }
+    }
+  };
+
+  const handleRestrict = async () => {
+    try {
+        const isCurrentlyRestricted = currentUser?.restrictedUsers?.includes(profileId);
+        const action = isCurrentlyRestricted ? 'unrestrict' : 'restrict';
+        await API.put(`/user/${profileId}/${action}`);
+        
+        let updatedCurrentUser = { ...currentUser };
+        if (action === 'restrict') {
+            updatedCurrentUser.restrictedUsers = [...(updatedCurrentUser.restrictedUsers || []), profileId];
+        } else {
+            updatedCurrentUser.restrictedUsers = (updatedCurrentUser.restrictedUsers || []).filter(id => id !== profileId);
+        }
+        localStorage.setItem('user', JSON.stringify(updatedCurrentUser));
+        sessionStorage.setItem('user', JSON.stringify(updatedCurrentUser));
+        
+        // Create an arbitrary state update to refresh UI
+        setUserProfile({...userProfile}); 
+    } catch (err) {
+      console.error(err);
+      alert("Failed to restrict/unrestrict");
+    }
+  };
+
+
   const getProfileImg = (img) => {
     if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
     if (img.startsWith("http")) return img;
@@ -261,6 +315,11 @@ const Profile = () => {
   if (loading) return <div style={{ textAlign: 'center', marginTop: '100px', color: '#2563eb', width: '100%' }}>Loading Profile...</div>;
   if (!userProfile) return <div className="card error">User not found</div>;
 
+  let postsToRender = [];
+  if (activeTab === 'posts') postsToRender = posts;
+  else if (activeTab === 'drafts') postsToRender = drafts;
+  else if (activeTab === 'scheduled') postsToRender = scheduled;
+
   return (
     <div className="profile-container">
 
@@ -301,7 +360,7 @@ const Profile = () => {
           <div className="info-top-row">
             <h2 className="username-text">
               {userProfile.username}
-              {userProfile.isVerified && <span className="verified-badge" title="Verified">✔️</span>}
+              {userProfile.isVerified && <span className="verified-badge" title="Verified"> ✔️</span>}
             </h2>
             {isOwnProfile && <div className="settings-icon" onClick={() => navigate('/settings')} title="Settings">⚙️</div>}
           </div>
@@ -340,6 +399,12 @@ const Profile = () => {
                         : "Follow"}
                 </button>
                 <button className="action-btn" onClick={handleMessage}>Message</button>
+                <button className="action-btn danger-btn" onClick={handleBlock} style={{backgroundColor: '#ef4444', color: 'white', border: 'none'}}>
+                  {currentUser?.blockedUsers?.includes(profileId) ? 'Unblock' : 'Block'}
+                </button>
+                <button className="action-btn" onClick={handleRestrict} style={{borderColor: '#ef4444', color: '#ef4444'}}>
+                  {currentUser?.restrictedUsers?.includes(profileId) ? 'Unrestrict' : 'Restrict'}
+                </button>
               </>
             )}
           </div>
@@ -379,15 +444,24 @@ const Profile = () => {
 
       {/* Navigation Tabs */}
       <div className="profile-tabs">
-        <div className="tab-item active" title="Posts">
+        <div className={`tab-item ${activeTab === 'posts' ? 'active' : ''}`} title="Posts" onClick={() => setActiveTab('posts')}>
           <span className="tab-icon"><FiGrid size={24} /></span>
         </div>
-        <div className="tab-item" title="Tagged">
+        <div className={`tab-item ${activeTab === 'tagged' ? 'active' : ''}`} title="Tagged" onClick={() => setActiveTab('tagged')}>
           <span className="tab-icon"><FiUser size={24} /></span>
         </div>
+        {isOwnProfile && (
+            <div className={`tab-item ${activeTab === 'drafts' ? 'active' : ''}`} title="Drafts" onClick={() => setActiveTab('drafts')}>
+              <span className="tab-icon"><FiEdit size={24} /></span>
+            </div>
+        )}
+        {isOwnProfile && (
+            <div className={`tab-item ${activeTab === 'scheduled' ? 'active' : ''}`} title="Scheduled" onClick={() => setActiveTab('scheduled')}>
+              <span className="tab-icon"><FiCalendar size={24} /></span>
+            </div>
+        )}
       </div>
 
-      {/* Photos Grid or Privacy Message */}
       {isLocked ? (
         <div className="privacy-locked-container" style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-secondary)' }}>
           <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔒</div>
@@ -396,7 +470,7 @@ const Profile = () => {
         </div>
       ) : (
         <div className="photos-grid">
-          {posts.map(post => {
+          {activeTab !== 'tagged' && postsToRender.map(post => {
             const imgUrl = getPostImg(post);
             return (
               <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
@@ -415,11 +489,29 @@ const Profile = () => {
               </div>
             )
           })}
-          {posts.length === 0 && (
+          {activeTab === 'posts' && posts.length === 0 && (
             <div className="empty-state">
               <div className="camera-icon">📷</div>
               <h3>{isOwnProfile ? "Share photos" : "No posts yet"}</h3>
               {isOwnProfile && <button className="action-btn text-blue" onClick={() => navigate('../create-post')}>Share your first photo</button>}
+            </div>
+          )}
+          {activeTab === 'drafts' && drafts.length === 0 && (
+            <div className="empty-state">
+              <div className="camera-icon">📝</div>
+              <h3>No drafts yet</h3>
+            </div>
+          )}
+          {activeTab === 'scheduled' && scheduled.length === 0 && (
+            <div className="empty-state">
+              <div className="camera-icon">🗓️</div>
+              <h3>No scheduled posts</h3>
+            </div>
+          )}
+          {activeTab === 'tagged' && (
+            <div className="empty-state">
+              <div className="camera-icon">🏷️</div>
+              <h3>No tagged photos</h3>
             </div>
           )}
         </div>

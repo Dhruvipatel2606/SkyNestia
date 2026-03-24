@@ -604,3 +604,261 @@ export const getUserActivity = async (req, res) => {
         res.status(500).json({ message: 'Error fetching user activity', error: error.message });
     }
 };
+
+// Admin: Get Dashboard Stats
+export const getAdminStats = async (req, res) => {
+    try {
+        const totalUsers = await UserModel.countDocuments();
+        const activeUsers = await UserModel.countDocuments({ accountStatus: 'active' });
+        const suspendedUsers = await UserModel.countDocuments({ accountStatus: 'suspended' });
+        const verifiedUsers = await UserModel.countDocuments({ isVerified: true });
+        const pendingVerifications = await UserModel.countDocuments({ verificationStatus: 'pending' });
+
+        // New users today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const newUsersToday = await UserModel.countDocuments({ createdAt: { $gte: startOfToday } });
+
+        // New users this week
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - 7);
+        const newUsersThisWeek = await UserModel.countDocuments({ createdAt: { $gte: startOfWeek } });
+
+        res.status(200).json({
+            totalUsers,
+            activeUsers,
+            suspendedUsers,
+            verifiedUsers,
+            pendingVerifications,
+            newUsersToday,
+            newUsersThisWeek
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching admin stats', error: error.message });
+    }
+};
+
+// Admin: Get All Users (paginated + search)
+export const getAdminUsers = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const status = req.query.status || '';
+
+        const filter = {};
+        if (search) {
+            filter.$or = [
+                { username: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { firstname: { $regex: search, $options: 'i' } },
+                { lastname: { $regex: search, $options: 'i' } }
+            ];
+        }
+        if (status) {
+            filter.accountStatus = status;
+        }
+
+        const total = await UserModel.countDocuments(filter);
+        const users = await UserModel.find(filter)
+            .select('username email firstname lastname profilePicture isAdmin isVerified verificationStatus accountStatus createdAt lastLogin loginCount followers following')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Map to include follower/following counts
+        const usersWithCounts = users.map(u => ({
+            _id: u._id,
+            username: u.username,
+            email: u.email,
+            firstname: u.firstname,
+            lastname: u.lastname,
+            profilePicture: u.profilePicture,
+            isAdmin: u.isAdmin,
+            isVerified: u.isVerified,
+            verificationStatus: u.verificationStatus,
+            accountStatus: u.accountStatus,
+            createdAt: u.createdAt,
+            lastLogin: u.lastLogin,
+            loginCount: u.loginCount,
+            followersCount: u.followers?.length || 0,
+            followingCount: u.following?.length || 0
+        }));
+
+        res.status(200).json({
+            users: usersWithCounts,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching users', error: error.message });
+    }
+};
+
+// Admin: Update User Account Status (suspend/activate/ban)
+export const updateUserStatus = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { accountStatus } = req.body;
+
+        if (!['active', 'suspended', 'banned'].includes(accountStatus)) {
+            return res.status(400).json({ message: 'Invalid status. Use "active", "suspended", or "banned".' });
+        }
+
+        const user = await UserModel.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (user.isAdmin) return res.status(403).json({ message: 'Cannot change status of an admin user' });
+
+        user.accountStatus = accountStatus;
+        if (accountStatus === 'active') {
+            user.banReason = '';
+        }
+        await user.save();
+
+        await deleteCache(`userProfile:${userId}`);
+        res.status(200).json({ message: `User account status set to "${accountStatus}" successfully` });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating user status', error: error.message });
+    }
+};
+
+// Admin: Ban a user
+export const banUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { reason } = req.body;
+
+        const user = await UserModel.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (user.isAdmin) return res.status(403).json({ message: 'Cannot ban an admin user' });
+
+        user.accountStatus = 'banned';
+        user.banReason = reason || 'Violation of community guidelines';
+        await user.save();
+
+        await deleteCache(`userProfile:${userId}`);
+        res.status(200).json({ message: 'User banned successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error banning user', error: error.message });
+    }
+};
+
+// Admin: Restrict a user
+export const restrictUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { canPost, canComment, canMessage, reason } = req.body;
+
+        const user = await UserModel.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (user.isAdmin) return res.status(403).json({ message: 'Cannot restrict an admin user' });
+
+        if (canPost !== undefined) user.restrictions.canPost = canPost;
+        if (canComment !== undefined) user.restrictions.canComment = canComment;
+        if (canMessage !== undefined) user.restrictions.canMessage = canMessage;
+        if (reason) user.restrictionReason = reason;
+
+        await user.save();
+        await deleteCache(`userProfile:${userId}`);
+
+        res.status(200).json({ message: 'User restrictions updated successfully', restrictions: user.restrictions });
+    } catch (error) {
+        res.status(500).json({ message: 'Error restricting user', error: error.message });
+    }
+};
+
+// User blocks another user
+export const blockUser = async (req, res) => {
+    const idToBlock = req.params.id;
+    const currentUserId = req.userId;
+    if (idToBlock === currentUserId) return res.status(403).json({ message: "Cannot block yourself" });
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        const userToBlock = await UserModel.findById(idToBlock);
+
+        if (!userToBlock) return res.status(404).json({ message: "User to block not found" });
+
+        if (!currentUser.blockedUsers.includes(idToBlock)) {
+            await currentUser.updateOne({ $push: { blockedUsers: idToBlock } });
+            
+            await currentUser.updateOne({ $pull: { following: idToBlock, followers: idToBlock } });
+            await userToBlock.updateOne({ $pull: { followers: currentUserId, following: currentUserId } });
+
+            await deleteCache(`userProfile:${currentUserId}`);
+            await deleteCache(`userProfile:${idToBlock}`);
+            await redisClient.del(`followers:${currentUserId}`);
+            await redisClient.del(`following:${currentUserId}`);
+            await redisClient.del(`followers:${idToBlock}`);
+            await redisClient.del(`following:${idToBlock}`);
+
+            res.status(200).json({ message: "User blocked successfully" });
+        } else {
+            res.status(403).json({ message: "User is already blocked" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Error blocking user", error: error.message });
+    }
+};
+
+// User unblocks another user
+export const unblockUser = async (req, res) => {
+    const idToUnblock = req.params.id;
+    const currentUserId = req.userId;
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        
+        if (currentUser.blockedUsers.includes(idToUnblock)) {
+            await currentUser.updateOne({ $pull: { blockedUsers: idToUnblock } });
+            await deleteCache(`userProfile:${currentUserId}`);
+            res.status(200).json({ message: "User unblocked successfully" });
+        } else {
+            res.status(403).json({ message: "User is not blocked" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Error unblocking user", error: error.message });
+    }
+};
+
+// User restricts another user (user-level restrict)
+export const restrictUserInteraction = async (req, res) => {
+    const idToRestrict = req.params.id;
+    const currentUserId = req.userId;
+    if (idToRestrict === currentUserId) return res.status(403).json({ message: "Cannot restrict yourself" });
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        
+        if (!currentUser.restrictedUsers.includes(idToRestrict)) {
+            await currentUser.updateOne({ $push: { restrictedUsers: idToRestrict } });
+            await deleteCache(`userProfile:${currentUserId}`);
+            res.status(200).json({ message: "User restricted successfully" });
+        } else {
+            res.status(403).json({ message: "User is already restricted" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Error restricting user", error: error.message });
+    }
+};
+
+// User unrestricts another user
+export const unrestrictUserInteraction = async (req, res) => {
+    const idToUnrestrict = req.params.id;
+    const currentUserId = req.userId;
+
+    try {
+        const currentUser = await UserModel.findById(currentUserId);
+        
+        if (currentUser.restrictedUsers.includes(idToUnrestrict)) {
+            await currentUser.updateOne({ $pull: { restrictedUsers: idToUnrestrict } });
+            await deleteCache(`userProfile:${currentUserId}`);
+            res.status(200).json({ message: "User unrestricted successfully" });
+        } else {
+            res.status(403).json({ message: "User is not restricted" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Error unrestricting user", error: error.message });
+    }
+};

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../../api.js';
 import './Post.css';
-import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal, FiUser } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal, FiUser, FiFlag } from 'react-icons/fi';
 import { FaGlobe, FaUserFriends } from 'react-icons/fa';
 
 const Post = ({ post }) => {
@@ -16,6 +16,11 @@ const Post = ({ post }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showTags, setShowTags] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentCaption, setCurrentCaption] = useState(post.caption || "");
+    const [editedCaption, setEditedCaption] = useState(post.caption || "");
+    const [reportMode, setReportMode] = useState(false);
+    const [reportReason, setReportReason] = useState('');
 
     const currentUserStr = localStorage.getItem("user");
     const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
@@ -62,6 +67,17 @@ const Post = ({ post }) => {
                 console.error("Delete error", err);
                 alert("Failed to delete post.");
             }
+        }
+    };
+
+    const handleUpdatePost = async () => {
+        try {
+            await API.put(`/post/${post._id}`, { caption: editedCaption });
+            setCurrentCaption(editedCaption);
+            setIsEditing(false);
+        } catch (err) {
+            console.error("Update error", err);
+            alert("Failed to update post.");
         }
     };
 
@@ -158,6 +174,23 @@ const Post = ({ post }) => {
         return `${Math.floor(diffInDays / 7)}w`;
     };
 
+    const handleReport = async (reason) => {
+        try {
+            await API.post('/report', {
+                targetType: 'post',
+                targetId: post._id,
+                reason
+            });
+            alert('Report submitted. Thank you for helping keep our community safe.');
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Failed to submit report';
+            alert(msg);
+        }
+        setReportMode(false);
+        setShowOptions(false);
+        setReportReason('');
+    };
+
     return (
         <div className="post-card">
             {/* Header */}
@@ -192,9 +225,27 @@ const Post = ({ post }) => {
                     {showOptions && (
                         <div className="options-menu">
                             {isOwner && (
-                                <div className="option-item delete" onClick={handleDelete}>Delete</div>
+                                <>
+                                    <div className="option-item" onClick={() => { setIsEditing(true); setShowOptions(false); }}>Edit</div>
+                                    <div className="option-item delete" onClick={handleDelete}>Delete</div>
+                                </>
                             )}
-                            <div className="option-item" onClick={() => setShowOptions(false)}>Cancel</div>
+                            {!isOwner && !reportMode && (
+                                <div className="option-item" onClick={() => setReportMode(true)} style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <FiFlag size={14} /> Report
+                                </div>
+                            )}
+                            {reportMode && (
+                                <>
+                                    {['spam', 'harassment', 'inappropriate', 'hate_speech', 'violence', 'other'].map(reason => (
+                                        <div key={reason} className="option-item" onClick={() => handleReport(reason)} style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                                            {reason.replace('_', ' ')}
+                                        </div>
+                                    ))}
+                                    <div className="option-item" onClick={() => { setReportMode(false); }}>← Back</div>
+                                </>
+                            )}
+                            <div className="option-item" onClick={() => { setShowOptions(false); setReportMode(false); }}>Cancel</div>
                         </div>
                     )}
                 </div>
@@ -280,12 +331,26 @@ const Post = ({ post }) => {
                 </div>
                 <div className="post-caption">
                     <span className="caption-username">{getUserName(post.userId)}</span>&nbsp;
-                    <span className="caption-text">
-                        {isExpanded ? post.caption : (post.caption?.substring(0, 120))}
-                        {post.caption?.length > 120 && !isExpanded && (
-                            <span className="more-btn" onClick={() => setIsExpanded(true)}> ... more</span>
-                        )}
-                    </span>
+                    {isEditing ? (
+                        <div style={{ marginTop: '5px' }}>
+                            <textarea
+                                value={editedCaption}
+                                onChange={(e) => setEditedCaption(e.target.value)}
+                                style={{ width: '100%', minHeight: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ddd', fontFamily: 'inherit' }}
+                            />
+                            <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
+                                <button onClick={handleUpdatePost} style={{ background: '#0095f6', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+                                <button onClick={() => { setIsEditing(false); setEditedCaption(currentCaption); }} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <span className="caption-text">
+                            {isExpanded ? currentCaption : (currentCaption?.substring(0, 120))}
+                            {currentCaption?.length > 120 && !isExpanded && (
+                                <span className="more-btn" onClick={() => setIsExpanded(true)} style={{ color: '#888', cursor: 'pointer' }}> ... more</span>
+                            )}
+                        </span>
+                    )}
                 </div>
                 <div className="view-comments-btn" onClick={toggleComments}>
                     {comments.length > 0 ? `View all ${comments.length} comments` : 'View comments'}

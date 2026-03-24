@@ -194,7 +194,7 @@ body.dark-mode {
     font-size: 24px;
     display: flex;
     align-items: center;
-    filter: drop-shadow(0 2px 4px rgba(24, 119, 242, 0.2));
+    filter: drop-shadow(0 2px 4px rgba(62, 119, 193, 0.913));
 }
 
 .profile-actions-row {
@@ -927,7 +927,7 @@ body.dark-mode {
     }
 
     /* Mobile Stats Bar (New) */
-    /* ...requires HTML change. Let's stick to simple stacking for now */
+
 
     /* Simplified Mobile: */
     .profile-header {

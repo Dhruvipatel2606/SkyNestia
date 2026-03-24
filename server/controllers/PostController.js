@@ -33,7 +33,7 @@ export const upload = multer({ storage: storage });
 
 export const createPost = async (req, res) => {
     try {
-        const { description, tags, location, visibility } = req.body;
+        const { description, tags, location, visibility, status, scheduledDate } = req.body;
         const userId = req.userId;
 
         const imageFiles = req.files && req.files['images'] ? req.files['images'] : [];
@@ -89,6 +89,8 @@ export const createPost = async (req, res) => {
             image: imagePaths[0] || "",
             images: imagePaths,
             music: musicPath,
+            status: status || 'published',
+            scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
             isModerated: true,
             isSafe: true,
             behaviorAudit: {
@@ -317,18 +319,37 @@ export const getUserPosts = async (req, res) => {
             }
         }
 
+
+        if (query.status === 'scheduled') {
+             // Let's simplify and just do an $or at top level, but it overrides query object if not careful.
+             // We can use $and.
+        }
+        
+        // Actually, let's be concise:
+        const finalQuery = {
+            $and: [
+                query,
+                {
+                    $or: [
+                        { status: 'published' },
+                        { status: { $exists: false } },
+                        { status: 'scheduled', scheduledDate: { $lte: new Date() } }
+                    ]
+                }
+            ]
+        };
+
         // If it's a private account and the query returns NO posts, then the frontend can show the 'Private' lock.
         // But if it returns posts, the frontend should show them.
         // So we don't block here. We just filter.
 
-
-        const posts = await postModel.find(query)
+        const posts = await postModel.find(finalQuery)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
             .populate('userId', 'username profilePicture firstname lastname')
             .populate('tags.userId', 'username firstname lastname');
-        const totalPosts = await postModel.countDocuments(query);
+        const totalPosts = await postModel.countDocuments(finalQuery);
         const hasMore = skip + posts.length < totalPosts;
         res.status(200).json({ posts, hasMore, totalPosts, isPrivate: user.isPrivate });
     } catch (error) {
@@ -358,12 +379,20 @@ export const getFeed = async (req, res) => {
         // 2. Post is mine OR
         // 3. Post is 'followers' AND I follow the author
         const query = {
-            $or: [
-                { visibility: 'public' },
-                { userId: req.userId }, // My posts
+            $and: [
                 {
-                    visibility: 'followers',
-                    userId: { $in: followingIds }
+                    $or: [
+                        { status: 'published' },
+                        { status: { $exists: false } },
+                        { status: 'scheduled', scheduledDate: { $lte: new Date() } }
+                    ]
+                },
+                {
+                    $or: [
+                        { visibility: 'public' },
+                        { userId: req.userId }, // My posts
+                        { visibility: 'followers', userId: { $in: followingIds } }
+                    ]
                 }
             ]
         };
@@ -424,5 +453,23 @@ export const getSavedPosts = async (req, res) => {
         res.status(200).json(savedPosts);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching saved posts', error: error.message });
+    }
+};
+
+export const getDrafts = async (req, res) => {
+    try {
+        const posts = await postModel.find({ userId: req.userId, status: 'draft' }).sort({ createdAt: -1 });
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: "Error", error: err.message });
+    }
+};
+
+export const getScheduled = async (req, res) => {
+    try {
+        const posts = await postModel.find({ userId: req.userId, status: 'scheduled', scheduledDate: { $gt: new Date() } }).sort({ scheduledDate: 1 });
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: "Error", error: err.message });
     }
 };

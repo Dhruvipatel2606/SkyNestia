@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount, updateAppUsage, getUserActivity, changePassword } from '../controllers/UserController.js';
+import { getUserProfile, updateUserProfile, deleteUserProfile, followUser, unfollowUser, searchUser, suggestedUsers, getFollowers, getFollowing, getMutualFollowers, getFollowRequests, acceptFollowRequest, rejectFollowRequest, requestVerification, deactivateAccount, deleteAccount, updateAppUsage, getUserActivity, changePassword, blockUser, unblockUser, restrictUserInteraction, unrestrictUserInteraction } from '../controllers/UserController.js';
 import { upload } from '../controllers/PostController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import UserModel from '../models/userModel.js';
@@ -76,5 +76,9 @@ router.put('/update/:id', authMiddleware, upload.fields([{ name: 'profileImage',
 router.delete('/:id', authMiddleware, deleteUserProfile); // delete user profile
 router.put('/:id/follow', authMiddleware, followUser); // follow user
 router.put('/:id/unfollow', authMiddleware, unfollowUser); // unfollow user
+router.put('/:id/block', authMiddleware, blockUser); // block user
+router.put('/:id/unblock', authMiddleware, unblockUser); // unblock user
+router.put('/:id/restrict', authMiddleware, restrictUserInteraction); // restrict user
+router.put('/:id/unrestrict', authMiddleware, unrestrictUserInteraction); // unrestrict user
 
 export default router;

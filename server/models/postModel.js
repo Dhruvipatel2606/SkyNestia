@@ -13,6 +13,8 @@ const PostSchema = new mongoose.Schema({
     location: String,
     music: String, // Store music track name or ID
     visibility: { type: String, enum: ['public', 'followers', 'close_friends'], default: 'public' },
+    status: { type: String, enum: ['draft', 'published', 'scheduled'], default: 'published' },
+    scheduledDate: { type: Date },
     isModerated: { type: Boolean, default: false },
     isSafe: { type: Boolean, default: true },
     behaviorAudit: {

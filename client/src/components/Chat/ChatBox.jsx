@@ -18,19 +18,19 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
     const [isTyping, setIsTyping] = useState(false);
     const scroll = useRef();
 
-    // Video Call States
+    // Call States
     const [activeCall, setActiveCall] = useState(false);
-    const [incomingCall, setIncomingCall] = useState(false);
+    const [incomingCall, setIncomingCall] = useState(null); // { callerId, callerName, callerAvatar, callType }
+    const [callType, setCallType] = useState(null); // 'video' | 'audio'
+    const [isCaller, setIsCaller] = useState(false);
 
-    // Check if the other user is online
     const checkOnlineStatus = (chat) => {
         const chatMember = chat?.members?.find((member) => member !== currentUser);
-        const online = onlineUsers?.find((user) => user.userId === chatMember);
-        return online ? true : false;
+        return onlineUsers?.some((user) => user.userId === chatMember) || false;
     };
     const isOnline = checkOnlineStatus(chat);
 
-    // Fetching data for header and setting up Encryption
+    // Fetch header user data + setup encryption
     useEffect(() => {
         const userId = chat?.members?.find((id) => id !== currentUser);
         if (chat !== null) {
@@ -68,18 +68,13 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                         try {
                             const decText = await decryptMessage(sharedKey, msg.text);
                             return { ...msg, text: decText };
-                        } catch (e) {
-                            return msg;
-                        }
+                        } catch (e) { return msg; }
                     });
-                    const decryptedMsgs = await Promise.all(decryptedPromises);
-                    setMessages(decryptedMsgs);
+                    setMessages(await Promise.all(decryptedPromises));
                 } else {
                     setMessages(data);
                 }
-            } catch (error) {
-                console.log(error);
-            }
+            } catch (error) { console.log(error); }
         };
         if (chat !== null) fetchMessages();
     }, [chat, sharedKey]);
@@ -99,22 +94,136 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         }
     }, [receiveMessage]);
 
+    // ───── Call Socket Listeners ─────
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleIncomingCall = (data) => {
+            // Only show if we're in the right chat or even if not
+            setIncomingCall({
+                callerId: data.callerId,
+                callerName: data.callerName,
+                callerAvatar: data.callerAvatar,
+                callType: data.callType
+            });
+        };
+
+        const handleCallRejected = () => {
+            setActiveCall(false);
+            setCallType(null);
+            setIsCaller(false);
+        };
+
+        const handleCallNotAvailable = () => {
+            alert("User is currently offline. Try again later.");
+            setActiveCall(false);
+            setCallType(null);
+            setIsCaller(false);
+        };
+
+        socket.on("incoming-call", handleIncomingCall);
+        socket.on("call-rejected", handleCallRejected);
+        socket.on("call-not-available", handleCallNotAvailable);
+
+        return () => {
+            socket.off("incoming-call", handleIncomingCall);
+            socket.off("call-rejected", handleCallRejected);
+            socket.off("call-not-available", handleCallNotAvailable);
+        };
+    }, [socket]);
+
+    // ───── Call Handlers ─────
+    const currentUserData = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user'));
+        } catch { return null; }
+    })();
+
+    const getProfilePic = (user) => {
+        if (!user?.profilePicture) return "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
+        if (typeof user.profilePicture === 'string' && user.profilePicture.startsWith('http')) return user.profilePicture;
+        const picName = typeof user.profilePicture === 'string' ? user.profilePicture.split('/').pop() : "";
+        return `${API.defaults.baseURL.replace('/api', '')}/images/${picName}`;
+    };
+
+    const handleStartCall = (type) => {
+        if (!isOnline) {
+            alert("User is offline. Cannot start a call.");
+            return;
+        }
+        const receiverId = chat?.members?.find((id) => id !== currentUser);
+        setCallType(type);
+        setIsCaller(true);
+        setActiveCall(true);
+
+        socket?.emit("call-user", {
+            callerId: currentUser,
+            callerName: currentUserData?.firstname || currentUserData?.username || 'User',
+            callerAvatar: getProfilePic(currentUserData),
+            receiverId,
+            callType: type
+        });
+    };
+
+    const handleAcceptIncoming = () => {
+        if (!incomingCall) return;
+        setCallType(incomingCall.callType);
+        setIsCaller(false);
+        setActiveCall(true);
+
+        socket?.emit("call-accepted", {
+            callerId: incomingCall.callerId,
+            receiverId: currentUser
+        });
+
+        setIncomingCall(null);
+    };
+
+    const handleDeclineIncoming = () => {
+        if (!incomingCall) return;
+        socket?.emit("call-rejected", {
+            callerId: incomingCall.callerId,
+            receiverId: currentUser
+        });
+        setIncomingCall(null);
+    };
+
+    const handleEndCall = useCallback(async (duration, type) => {
+        setActiveCall(false);
+        setCallType(null);
+        setIsCaller(false);
+
+        const callEmoji = type === 'video' ? '📹' : '📞';
+        const callLabel = type === 'video' ? 'Video call' : 'Voice call';
+        const defaultLabel = `${callEmoji} ${callLabel} ended`;
+
+        let messageParams = {
+            senderId: currentUser,
+            chatId: chat?._id,
+            isCallLog: true,
+            callDuration: duration,
+        };
+
+        try {
+            messageParams.text = sharedKey ? await encryptMessage(sharedKey, defaultLabel) : defaultLabel;
+            const receiverId = chat?.members?.find((id) => id !== currentUser);
+            setSendMessage({ ...messageParams, receiverId, _id: `temp-${Date.now()}`, createdAt: new Date().toISOString() });
+            const { data } = await addMessage(messageParams);
+            setMessages((prev) => [...prev, { ...data, text: defaultLabel }]);
+        } catch (error) {
+            console.error("Failed to save call log", error);
+            setMessages((prev) => [...prev, { ...messageParams, text: defaultLabel, _id: `call-${Date.now()}`, createdAt: new Date().toISOString() }]);
+        }
+    }, [currentUser, chat, sharedKey, setSendMessage]);
+
+    // ───── Messaging ─────
     const handleSend = async (e) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
-        let messageParams = {
-            senderId: currentUser,
-            chatId: chat._id,
-        };
-
-        if (sharedKey) {
-            const encryptedText = await encryptMessage(sharedKey, newMessage);
-            messageParams.text = encryptedText;
-        } else {
-            console.warn("Saving unencrypted message because recipient has no public key.");
-            messageParams.text = newMessage;
-        }
+        let messageParams = { senderId: currentUser, chatId: chat._id };
+        messageParams.text = sharedKey ? await encryptMessage(sharedKey, newMessage) : newMessage;
+        if (!sharedKey) console.warn("Sending unencrypted — recipient has no public key.");
 
         const receiverId = chat.members.find((id) => id !== currentUser);
         setSendMessage({ ...messageParams, receiverId });
@@ -123,16 +232,14 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
             const { data } = await addMessage(messageParams);
             setMessages([...messages, { ...data, text: newMessage }]);
             setNewMessage("");
-        } catch (error) {
-            console.log(error);
-        }
+        } catch (error) { console.log(error); }
     };
 
     useEffect(() => {
         scroll.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Typing Listeners
+    // Typing
     useEffect(() => {
         if (!socket) return;
         const handleTyping = (data) => {
@@ -160,63 +267,8 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         }, 2000);
     };
 
-    const getProfilePic = (user) => {
-        if (!user?.profilePicture) return "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
-        if (typeof user.profilePicture === 'string' && user.profilePicture.startsWith('http')) return user.profilePicture;
-        const picName = typeof user.profilePicture === 'string' ? user.profilePicture.split('/').pop() : "";
-        return `${API.defaults.baseURL.replace('/api', '')}/images/${picName}`;
-    };
-
-    // ===== VIDEO CALL HANDLERS =====
-    const handleStartCall = () => {
-        setActiveCall(true);
-    };
-
-    const handleEndCall = useCallback(async (duration) => {
-        setActiveCall(false);
-        const defaultLabel = "📹 Video call ended";
-        
-        let messageParams = {
-            senderId: currentUser,
-            chatId: chat?._id,
-            isCallLog: true,
-            callDuration: duration,
-        };
-
-        try {
-            if (sharedKey) {
-                const encryptedText = await encryptMessage(sharedKey, defaultLabel);
-                messageParams.text = encryptedText;
-            } else {
-                messageParams.text = defaultLabel;
-            }
-
-            const receiverId = chat?.members?.find((id) => id !== currentUser);
-            setSendMessage({ ...messageParams, receiverId, _id: `temp-${Date.now()}`, createdAt: new Date().toISOString() });
-
-            const { data } = await addMessage(messageParams);
-            setMessages((prev) => [...prev, { ...data, text: defaultLabel }]);
-        } catch (error) {
-            console.error("Failed to save or encrypt call log", error);
-            // Fallback to local append if save/encrypt fails to keep UX smooth
-            setMessages((prev) => [...prev, { ...messageParams, text: defaultLabel, _id: `call-${Date.now()}`, createdAt: new Date().toISOString() }]);
-        }
-    }, [currentUser, chat, sharedKey, setSendMessage]);
-
-    const handleTriggerIncoming = () => {
-        setIncomingCall(true);
-    };
-
-    const handleAcceptIncoming = () => {
-        setIncomingCall(false);
-        setActiveCall(true);
-    };
-
-    const handleDeclineIncoming = () => {
-        setIncomingCall(false);
-    };
-
     const displayName = userData?.firstname || userData?.username || "User";
+    const remoteUserId = chat?.members?.find((id) => id !== currentUser);
 
     return (
         <div className="chatWindow">
@@ -225,18 +277,10 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                     {/* Chat Header */}
                     <div className="chat-header">
                         <div className="chat-header-info">
-                            {/* Back Button for Mobile */}
-                            <div
-                                className="back-arrow-chat"
-                                onClick={() => setChat(null)}
-                            >
+                            <div className="back-arrow-chat" onClick={() => setChat(null)}>
                                 <FiArrowLeft size={22} />
                             </div>
-                            <img
-                                src={getProfilePic(userData)}
-                                alt=""
-                                className="chat-header-img"
-                            />
+                            <img src={getProfilePic(userData)} alt="" className="chat-header-img" />
                             <div className="chat-header-name">
                                 <span className="name">{displayName} {userData?.lastname || ""}</span>
                                 {isTyping ? (
@@ -251,15 +295,15 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                         <div className="chat-header-actions">
                             <button
                                 className="header-action-btn phone-btn"
-                                onClick={handleTriggerIncoming}
-                                title="Simulate Incoming Call"
+                                onClick={() => handleStartCall('audio')}
+                                title="Voice Call"
                             >
                                 <FiPhone />
                             </button>
                             <button
                                 className="header-action-btn video-call-btn"
-                                onClick={handleStartCall}
-                                title="Start Video Call"
+                                onClick={() => handleStartCall('video')}
+                                title="Video Call"
                                 id="start-video-call-btn"
                             >
                                 <FiVideo />
@@ -272,9 +316,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                         {messages.map((message) => (
                             message.isCallLog ? (
                                 <div className="message call-history" key={message._id} ref={scroll}>
-                                    <span className="call-history-icon">📹</span>
+                                    <span className="call-history-icon">{message.text?.includes('Video') ? '📹' : '📞'}</span>
                                     <div className="call-history-details">
-                                        <span className="call-history-title">Video Call</span>
+                                        <span className="call-history-title">{message.text?.includes('Video') ? 'Video Call' : 'Voice Call'}</span>
                                         <span className="call-history-sub">{message.callDuration || "Ended"}</span>
                                     </div>
                                     <span className="time">
@@ -308,11 +352,15 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                         <button className="send-button" onClick={handleSend}>Send</button>
                     </div>
 
-                    {/* Video Call Overlay */}
+                    {/* Active Call Overlay */}
                     {activeCall && (
                         <VideoCall
+                            socket={socket}
+                            currentUserId={currentUser}
+                            remoteUserId={remoteUserId}
                             userData={userData}
-                            currentUserAvatar={getProfilePic({ profilePicture: null })}
+                            callType={callType}
+                            isCaller={isCaller}
                             onEndCall={handleEndCall}
                         />
                     )}
@@ -320,8 +368,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                     {/* Incoming Call Notification */}
                     {incomingCall && (
                         <IncomingCall
-                            callerName={displayName}
-                            callerAvatar={getProfilePic(userData)}
+                            callerName={incomingCall.callerName}
+                            callerAvatar={incomingCall.callerAvatar}
+                            callType={incomingCall.callType}
                             onAccept={handleAcceptIncoming}
                             onDecline={handleDeclineIncoming}
                         />
