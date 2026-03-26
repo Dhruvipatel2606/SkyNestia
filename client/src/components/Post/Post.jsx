@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../../api.js';
 import './Post.css';
-import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal, FiUser, FiFlag } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal, FiUser, FiFlag, FiChevronLeft, FiChevronRight, FiTrash2, FiCornerDownRight, FiSmile } from 'react-icons/fi';
+import EmojiPicker from 'emoji-picker-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FaGlobe, FaUserFriends } from 'react-icons/fa';
+import { useSocket } from '../../SocketContext';
 
 const Post = ({ post }) => {
     const navigate = useNavigate();
@@ -21,8 +24,24 @@ const Post = ({ post }) => {
     const [editedCaption, setEditedCaption] = useState(post.caption || "");
     const [reportMode, setReportMode] = useState(false);
     const [reportReason, setReportReason] = useState('');
+    const [replyingTo, setReplyingTo] = useState(null); // { id, username }
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-    const currentUserStr = localStorage.getItem("user");
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const nextImage = () => {
+        if (post.images && currentImageIndex < post.images.length - 1) {
+            setCurrentImageIndex(prev => prev + 1);
+        }
+    };
+
+    const prevImage = () => {
+        if (currentImageIndex > 0) {
+            setCurrentImageIndex(prev => prev - 1);
+        }
+    };
+
+    const currentUserStr = sessionStorage.getItem("user") || localStorage.getItem("user");
     const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
     const currentUserId = currentUser?._id;
 
@@ -120,12 +139,41 @@ const Post = ({ post }) => {
             const res = await API.post('/comment', {
                 postId: post._id,
                 userId: currentUserId,
-                text: newComment
+                text: newComment,
+                parentId: replyingTo?.id || null
             });
             setComments(prev => [res.data, ...prev]);
             setNewComment("");
+            setReplyingTo(null);
         } catch (err) {
             console.error("Comment error", err);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm("Delete this comment?")) return;
+        try {
+            await API.delete(`/comment/${commentId}`);
+            setComments(prev => prev.filter(c => c._id !== commentId && c.parentId !== commentId));
+        } catch (err) {
+            console.error("Delete comment error", err);
+        }
+    };
+
+    const handleToggleCommentLike = async (commentId) => {
+        try {
+            const res = await API.put(`/comment/${commentId}/like`);
+            setComments(prev => prev.map(c => {
+                if (c._id === commentId) {
+                    const newLikes = res.data.liked 
+                        ? [...(c.likes || []), currentUserId] 
+                        : (c.likes || []).filter(id => id !== currentUserId);
+                    return { ...c, likes: newLikes };
+                }
+                return c;
+            }));
+        } catch (err) {
+            console.error("Like comment error", err);
         }
     };
 
@@ -152,6 +200,7 @@ const Post = ({ post }) => {
                 }
                 const updatedUser = { ...currentUser, savedPosts: newSaved };
                 localStorage.setItem('user', JSON.stringify(updatedUser));
+                sessionStorage.setItem('user', JSON.stringify(updatedUser));
             }
 
         } catch (err) {
@@ -254,10 +303,31 @@ const Post = ({ post }) => {
             {/* Content (Image) */}
             <div className="post-content-visual" style={{ position: 'relative' }}>
                 {(post.images && post.images.length > 0) ? (
-                    <div className={`post-images-grid grid-${Math.min(post.images.length, 4)}`}>
-                        {post.images.map((img, i) => (
-                            <img key={i} src={`${API.defaults.baseURL.replace('/api', '')}${img}`} alt="" className="post-img" />
-                        ))}
+                    <div className="post-carousel-container" style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
+                        <img 
+                            src={`${API.defaults.baseURL.replace('/api', '')}${post.images[currentImageIndex]}`} 
+                            alt="" 
+                            className="post-single-img" 
+                        />
+                        {post.images.length > 1 && (
+                            <>
+                                {currentImageIndex > 0 && (
+                                    <button className="carousel-nav-btn left" onClick={prevImage}>
+                                        <FiChevronLeft size={24} color="white" />
+                                    </button>
+                                )}
+                                {currentImageIndex < post.images.length - 1 && (
+                                    <button className="carousel-nav-btn right" onClick={nextImage}>
+                                        <FiChevronRight size={24} color="white" />
+                                    </button>
+                                )}
+                                <div className="carousel-dots">
+                                    {post.images.map((_, idx) => (
+                                        <div key={idx} className={`carousel-dot ${currentImageIndex === idx ? 'active' : ''}`} />
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 ) : post.image ? (
                     <img src={`${API.defaults.baseURL.replace('/api', '')}${post.image}`} alt="" className="post-single-img" />
@@ -353,7 +423,7 @@ const Post = ({ post }) => {
                     )}
                 </div>
                 <div className="view-comments-btn" onClick={toggleComments}>
-                    {comments.length > 0 ? `View all ${comments.length} comments` : 'View comments'}
+                    {Math.max(post.comments?.length || 0, comments.length) > 0 ? `View all ${Math.max(post.comments?.length || 0, comments.length)} comments` : 'View comments'}
                 </div>
             </div>
 
@@ -361,22 +431,139 @@ const Post = ({ post }) => {
             {showComments && (
                 <div className="comments-section">
                     <div className="comments-list">
-                        {comments.map(comment => (
-                            <div key={comment._id} className="comment-item">
-                                <span className="comment-username">{getUserName(comment.userId)}</span>
-                                <span className="comment-text">{comment.text}</span>
+                        {/* Top Level Comments */}
+                        {comments.filter(c => !c.parentId).map(comment => (
+                            <div key={comment._id} className="comment-wrapper">
+                                <div className="comment-item">
+                                    <img src={getProfilePic(comment.userId)} alt="" className="comment-avatar-mini" />
+                                    <div className="comment-content">
+                                        <div className="comment-bubble">
+                                            <span className="comment-username">{getUserName(comment.userId)}</span>&nbsp;
+                                            <span className="comment-text">{comment.text}</span>
+                                        </div>
+                                        <div className="comment-actions">
+                                            <span className="action-time">{formatTime(comment.createdAt)}</span>
+                                            <span 
+                                                className={`action-link comment-like-btn ${comment.likes?.includes(currentUserId) ? 'active' : ''}`} 
+                                                onClick={() => handleToggleCommentLike(comment._id)}
+                                                title="Like comment"
+                                            >
+                                                <FiHeart fill={comment.likes?.includes(currentUserId) ? "#ed4956" : "none"} size={13} />
+                                                <span className="count-label">{comment.likes?.length || 0}</span>
+                                            </span>
+                                            <span 
+                                                className="action-link" 
+                                                onClick={() => setReplyingTo({ id: comment._id, username: getUserName(comment.userId) })}
+                                                title="Reply"
+                                            >
+                                                <FiMessageCircle size={13} /> Reply
+                                            </span>
+                                            {(isOwner || comment.userId?._id === currentUserId || comment.userId === currentUserId) && (
+                                                <span 
+                                                    className="action-link comment-delete-btn" 
+                                                    onClick={() => handleDeleteComment(comment._id)} 
+                                                    title="Delete"
+                                                >
+                                                    <FiTrash2 size={13} />
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Replies */}
+                                <div className="comment-replies-container">
+                                    {comments.filter(c => c.parentId === comment._id).map(reply => (
+                                        <div key={reply._id} className="comment-item comment-reply-nested">
+                                            <FiCornerDownRight className="reply-arrow" size={14} />
+                                            <img src={getProfilePic(reply.userId)} alt="" className="comment-avatar-mini" />
+                                            <div className="comment-content">
+                                                <div className="comment-bubble">
+                                                    <span className="comment-username">{getUserName(reply.userId)}</span>&nbsp;
+                                                    <span className="comment-text">{reply.text}</span>
+                                                </div>
+                                                <div className="comment-actions">
+                                                    <span className="action-time">{formatTime(reply.createdAt)}</span>
+                                                    <span 
+                                                        className={`action-link comment-like-btn ${reply.likes?.includes(currentUserId) ? 'active' : ''}`} 
+                                                        onClick={() => handleToggleCommentLike(reply._id)}
+                                                        title="Like reply"
+                                                    >
+                                                        <FiHeart fill={reply.likes?.includes(currentUserId) ? "#ed4956" : "none"} size={12} />
+                                                        <span className="count-label">{reply.likes?.length || 0}</span>
+                                                    </span>
+                                                    {(isOwner || reply.userId?._id === currentUserId || reply.userId === currentUserId) && (
+                                                        <span 
+                                                            className="action-link comment-delete-btn" 
+                                                            onClick={() => handleDeleteComment(reply._id)} 
+                                                            title="Delete"
+                                                        >
+                                                            <FiTrash2 size={12} />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         ))}
                     </div>
-                    {loadingComments && <p className="muted" style={{ fontSize: '0.8rem' }}>Loading...</p>}
+
+                    {loadingComments && <p className="muted" style={{ fontSize: '0.8rem', paddingLeft: '10px' }}>Loading comments...</p>}
+                    
+                    {replyingTo && (
+                        <div className="replying-to-banner">
+                            <span>Replying to <b>@{replyingTo.username}</b></span>
+                            <span className="cancel-reply" onClick={() => setReplyingTo(null)}>Cancel</span>
+                        </div>
+                    )}
+
                     <form className="comment-form" onSubmit={submitComment}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <FiSmile 
+                                className="emoji-trigger" 
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                                style={{ cursor: 'pointer', marginRight: '10px', color: '#8e8e8e', fontSize: '1.2rem' }}
+                            />
+                            <AnimatePresence>
+                                {showEmojiPicker && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        style={{ 
+                                            position: 'absolute', 
+                                            bottom: 'calc(100% + 15px)', 
+                                            left: '-10px', 
+                                            zIndex: 2000,
+                                            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                                            borderRadius: '12px',
+                                            overflow: 'hidden'
+                                        }}
+                                    >
+                                        <EmojiPicker 
+                                            onEmojiClick={(emoji) => {
+                                                setNewComment(prev => prev + emoji.emoji);
+                                                setShowEmojiPicker(false);
+                                            }}
+                                            theme="light"
+                                            width={300}
+                                            height={400}
+                                            searchDisabled={false}
+                                            skinTonesDisabled={true}
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                         <input
                             type="text"
-                            placeholder="Add a comment..."
+                            placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                         />
-                        <button type="submit" disabled={!newComment.trim()}>Post</button>
+                        <button type="submit" disabled={!newComment.trim()}>{replyingTo ? 'Reply' : 'Post'}</button>
                     </form>
                 </div>
             )}

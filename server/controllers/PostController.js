@@ -10,10 +10,18 @@ import { redisClient } from '../config/redis.js';
 const cleanupFiles = (files) => {
     if (!files) return;
     files.forEach(file => {
-        fs.unlink(file.path, (err) => {
-            if (err) console.error(`Failed to delete file: ${file.path}`, err);
-        });
+        if (file && file.path) {
+            fs.unlink(file.path, (err) => {
+                if (err) console.error(`Failed to delete file: ${file.path}`, err);
+            });
+        }
     });
+};
+
+const extractHashtags = (text) => {
+    if (!text) return [];
+    const hashMatches = text.match(/#\w+/g);
+    return hashMatches ? hashMatches.map(h => h.slice(1).toLowerCase()) : [];
 };
 
 const storage = multer.diskStorage({
@@ -73,16 +81,37 @@ export const createPost = async (req, res) => {
 
         if (safetyResult.action === 'REJECT') {
             cleanupFiles([...imageFiles, ...musicFiles]);
+            
+            const user = await userModel.findById(userId);
+            if (user) {
+                user.violationCount = (user.violationCount || 0) + 1;
+                user.violationHistory.push({
+                    category: safetyResult.details.category,
+                    reasoning: safetyResult.details.reasoning_brief,
+                    timestamp: new Date()
+                });
+                
+                if (user.violationCount >= 3) {
+                    user.restrictions.canPost = false;
+                    user.restrictions.canComment = false;
+                    user.restrictionReason = 'Auto-restricted due to repeated content violations.';
+                    user.accountStatus = 'suspended';
+                }
+                await user.save();
+            }
+
             return res.status(403).json({
-                message: "Post behavior check failed.",
+                message: user && user.violationCount >= 3 ? "Account suspended due to repeated violations." : "Post behavior check failed.",
                 isVulnerable: true,
-                violationDetails: safetyResult.details
+                violationDetails: safetyResult.details,
+                strikeCount: user ? user.violationCount : 1
             });
         }
 
         const post = await postModel.create({
             userId: userId,
             caption: description,
+            hashtags: extractHashtags(description),
             tags: processedTags,
             location,
             visibility,
@@ -115,10 +144,21 @@ export const createPost = async (req, res) => {
 
         res.status(201).json({ message: "Post created successfully", post });
 
-        try {
-            const keys = await redisClient.keys('feed:*');
-            if (keys.length > 0) await redisClient.del(keys);
-        } catch (err) { console.error('Redis cache error:', err); }
+        if (redisClient.isReady) {
+            try {
+                const userKeys = await redisClient.keys(`feed:${userId}:*`);
+                if (userKeys.length > 0) await redisClient.del(userKeys);
+                console.log(`[Cache INVALIDATE] Cleared ${userKeys.length} feed keys for user ${userId}`);
+                
+                const poster = await userModel.findById(userId);
+                if (poster && poster.followers.length > 0) {
+                    for (const fid of poster.followers) {
+                        const fKeys = await redisClient.keys(`feed:${fid}:*`);
+                        if (fKeys.length > 0) await redisClient.del(fKeys);
+                    }
+                }
+            } catch (err) { console.error('[Cache INVALIDATE Error]', err.message); }
+        }
 
     } catch (error) {
         console.error("Create Post Error:", error);
@@ -172,10 +212,29 @@ export const updatePost = async (req, res) => {
         if (req.body.caption || req.body.description) {
             const safetyResult = await checkPostBehaviorSync(userId, req.body.description || req.body.caption);
             if (safetyResult.action === 'REJECT') {
+                const user = await userModel.findById(userId);
+                if (user) {
+                    user.violationCount = (user.violationCount || 0) + 1;
+                    user.violationHistory.push({
+                        category: safetyResult.details.category,
+                        reasoning: safetyResult.details.reasoning_brief,
+                        timestamp: new Date()
+                    });
+                    
+                    if (user.violationCount >= 3) {
+                        user.restrictions.canPost = false;
+                        user.restrictions.canComment = false;
+                        user.restrictionReason = 'Auto-restricted due to repeated content violations.';
+                        user.accountStatus = 'suspended';
+                    }
+                    await user.save();
+                }
+
                 return res.status(403).json({
-                    message: "Vulnerable content detected in update.",
+                    message: user && user.violationCount >= 3 ? "Account suspended due to repeated violations." : "Vulnerable content detected in update.",
                     isVulnerable: true,
-                    violationDetails: safetyResult.details
+                    violationDetails: safetyResult.details,
+                    strikeCount: user ? user.violationCount : 1
                 });
             }
             // Add behavior audit to update
@@ -187,6 +246,10 @@ export const updatePost = async (req, res) => {
                 confidence: safetyResult.details.confidence_score,
                 timestamp: new Date()
             };
+        }
+
+        if (req.body.description || req.body.caption) {
+            req.body.hashtags = extractHashtags(req.body.description || req.body.caption);
         }
 
         await postModel.findByIdAndUpdate(postId, { $set: req.body });
@@ -204,10 +267,20 @@ export const deletePost = async (req, res) => {
         if (!post) return res.status(404).json({ message: 'Post not found' });
         if (post.userId.toString() === userId) {
             await postModel.findByIdAndDelete(postId);
-            try {
-                const keys = await redisClient.keys('feed:*');
-                if (keys.length > 0) await redisClient.del(keys);
-            } catch (err) { console.error('Redis cache error:', err); }
+            if (redisClient.isReady) {
+                try {
+                    const userKeys = await redisClient.keys(`feed:${userId}:*`);
+                    if (userKeys.length > 0) await redisClient.del(userKeys);
+                    
+                    const poster = await userModel.findById(userId);
+                    if (poster && poster.followers.length > 0) {
+                        for (const fid of poster.followers) {
+                            const fKeys = await redisClient.keys(`feed:${fid}:*`);
+                            if (fKeys.length > 0) await redisClient.del(fKeys);
+                        }
+                    }
+                } catch (err) { console.error('[Cache INVALIDATE Error]', err.message); }
+            }
             res.status(200).json({ message: 'Post deleted successfully' });
         } else {
             res.status(403).json({ message: 'You can only delete your own posts' });
@@ -362,14 +435,18 @@ export const getFeed = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const cacheKey = `feed:${page}:${limit}`;
+        const cacheKey = `feed:${req.userId}:${page}:${limit}`;
 
-        try {
-            const cachedData = await redisClient.get(cacheKey);
-            if (cachedData) {
-                return res.status(200).json(JSON.parse(cachedData));
-            }
-        } catch (err) { console.warn('Redis cache error:', err); }
+        if (redisClient.isReady) {
+            try {
+                const cachedData = await redisClient.get(cacheKey);
+                if (cachedData) {
+                    console.log(`[Cache HIT] ${cacheKey}`);
+                    return res.status(200).json(JSON.parse(cachedData));
+                }
+                console.log(`[Cache MISS] ${cacheKey}`);
+            } catch (err) { console.warn('[Cache GET Error]', err.message); }
+        }
 
         const currentUser = await userModel.findById(req.userId);
         const followingIds = currentUser ? currentUser.following.map(id => id.toString()) : [];
@@ -414,9 +491,12 @@ export const getFeed = async (req, res) => {
             hasMore
         };
 
-        try {
-            await redisClient.set(cacheKey, JSON.stringify(responseData), { EX: 3600 });
-        } catch (err) { console.warn('Redis set error:', err); }
+        if (redisClient.isReady) {
+            try {
+                await redisClient.set(cacheKey, JSON.stringify(responseData), { EX: 3600 });
+                console.log(`[Cache SET] ${cacheKey} (TTL: 3600s)`);
+            } catch (err) { console.warn('[Cache SET Error]', err.message); }
+        }
 
         res.status(200).json(responseData);
     } catch (error) {
@@ -471,5 +551,74 @@ export const getScheduled = async (req, res) => {
         res.status(200).json(posts);
     } catch (err) {
         res.status(500).json({ message: "Error", error: err.message });
+    }
+};
+
+// Search & Discovery Features
+export const searchPosts = async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) return res.status(200).json([]);
+
+        const isHashtag = query.startsWith('#');
+        const searchTerm = isHashtag ? query.slice(1) : query;
+
+        const posts = await postModel.find({
+            $and: [
+                { visibility: 'public' },
+                {
+                    $or: [
+                        { hashtags: searchTerm.toLowerCase() },
+                        { caption: { $regex: searchTerm, $options: "i" } }
+                    ]
+                }
+            ]
+        }).populate('userId', 'username profilePicture');
+
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+export const getTrendingPosts = async (req, res) => {
+    try {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const posts = await postModel.aggregate([
+            { $match: { createdAt: { $gte: oneWeekAgo }, visibility: 'public' } },
+            { $addFields: { score: { $add: [{ $size: "$likes" }, { $multiply: [{ $size: "$comments" }, 2] }] } } },
+            { $sort: { score: -1 } },
+            { $limit: 20 },
+            { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
+            { $unwind: '$user' },
+            { $project: { 'user.password': 0, 'user.email': 0 } }
+        ]);
+
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+export const getExploreFeed = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const user = await userModel.findById(userId);
+        const following = user.following || [];
+
+        // Fetch posts from non-following users
+        const posts = await postModel.find({
+            userId: { $nin: [...following, userId] },
+            visibility: 'public'
+        })
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .populate('userId', 'username profilePicture');
+
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 };

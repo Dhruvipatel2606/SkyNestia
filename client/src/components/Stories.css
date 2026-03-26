@@ -1,0 +1,258 @@
+:root {
+    --story-size: 64px;
+    --story-gradient: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.stories-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 15px 0;
+    gap: 15px;
+    /* Glassmorphism card look */
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+
+.stories-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
+}
+
+.story-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.story-item:hover {
+    transform: scale(1.05);
+}
+
+.story-circle {
+    position: relative;
+    width: var(--story-size);
+    height: var(--story-size);
+    border-radius: 50%;
+    padding: 3px;
+    background: #fff;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.story-circle.active {
+    background: var(--story-gradient);
+    border: none;
+    padding: 2px;
+}
+
+.story-circle img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+}
+
+.create-story .story-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #0095f6;
+}
+
+.create-story .story-circle label {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10;
+}
+
+.create-story .story-circle svg {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #0095f6;
+    color: white;
+    border-radius: 50%;
+    padding: 2px;
+    font-size: 1.2rem;
+    border: 2px solid white;
+}
+
+.story-username {
+    font-size: 0.75rem;
+    margin-top: 5px;
+    color: #333;
+    max-width: 70px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+/* Story Viewer Overlay */
+.story-viewer-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.story-viewer-content {
+    width: 100%;
+    max-width: 450px;
+    height: 80vh;
+    background: #000;
+    border-radius: 12px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.story-header-minimal {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    color: white;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+}
+
+.mini-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.close-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.story-media-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.story-media-container img, 
+.story-media-container video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Progress Bar */
+.story-progress-bar {
+    display: flex;
+    padding: 10px;
+    gap: 4px;
+    position: absolute;
+    top: 5px; left: 0; right: 0;
+    z-index: 20;
+}
+
+.progress-segment {
+    flex: 1;
+    height: 2px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-segment.completed {
+    background: #fff;
+}
+
+.progress-segment.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: #fff;
+    width: 0;
+    animation: storyProgress 5s linear forwards;
+}
+
+@keyframes storyProgress {
+    to { width: 100%; }
+}
+
+/* Nav Arrows */
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-arrow:hover { background: rgba(255,255,255,0.4); }
+.nav-arrow.left { left: 10px; }
+.nav-arrow.right { right: 10px; }
+
+/* Footer */
+.story-footer {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+
+.reaction-row {
+    display: flex;
+    gap: 15px;
+}
+
+.reaction-row button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.reaction-row button:hover { transform: scale(1.3); }
+
+.viewer-count-mini {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.8rem;
+}
+
+.story-date-small {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.7);
+}

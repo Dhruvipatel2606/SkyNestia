@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import API from "../api.js";
 import { Link } from "react-router-dom";
+import Stories from "./Stories";
 import Post from "./Post/Post";
 import SuggestedUsers from "./SuggestedUsers";
+import './Stories.css'; // Add CSS too
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -97,6 +99,8 @@ const Feed = () => {
           </div>
           <Link to="/create-post" className="create-post-btn">Create Post</Link>
         </div>
+
+        <Stories />
 
         {posts.length === 0 && !loading ? (
           <div className="card empty-feed">

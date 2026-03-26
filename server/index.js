@@ -25,7 +25,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Create HTTP server
 const httpServer = http.createServer(app);
@@ -39,13 +39,20 @@ httpServer.listen(PORT, () => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION! 💥 logging error but keeping server alive...');
+    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
     console.error(err.name, err.message);
     console.error(err.stack);
+    process.exit(1);
 });
 
 process.on('unhandledRejection', (err) => {
-    console.error('UNHANDLED REJECTION! 💥 logging error but keeping server alive...');
+    console.error('UNHANDLED REJECTION! 💥 Shutting down...');
     console.error(err.name, err.message);
-    console.error(err.stack);
+    if (httpServer) {
+        httpServer.close(() => {
+            process.exit(1);
+        });
+    } else {
+        process.exit(1);
+    }
 });

@@ -83,10 +83,13 @@ export const adminDeletePost = async (req, res) => {
         );
 
         // Clear feed cache
-        try {
-            const keys = await redisClient.keys('feed:*');
-            if (keys.length > 0) await redisClient.del(keys);
-        } catch (err) { /* ignore */ }
+        if (redisClient.isReady) {
+            try {
+                const keys = await redisClient.keys('feed:*');
+                if (keys.length > 0) await redisClient.del(keys);
+                console.log('[Cache INVALIDATE] Admin deleted post, cleared feed cache');
+            } catch (err) { console.error('[Cache Admin Flush Error]', err.message); }
+        }
 
         res.status(200).json({ message: 'Post deleted successfully' });
     } catch (error) {

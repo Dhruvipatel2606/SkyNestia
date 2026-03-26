@@ -216,22 +216,60 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         }
     }, [currentUser, chat, sharedKey, setSendMessage]);
 
-    // ───── Messaging ─────
+    // Mark messages as read
+    const markAllRead = useCallback(async () => {
+        if (!chat || !currentUser) return;
+        try {
+            await API.put(`/message/${chat._id}/read/${currentUser}`);
+            const receiverId = chat.members.find(id => id !== currentUser);
+            socket?.emit("message-read", { chatId: chat._id, senderId: receiverId });
+        } catch (err) { console.error("Mark read failed", err); }
+    }, [chat, currentUser, socket]);
+
+    useEffect(() => {
+        if (chat) markAllRead();
+    }, [chat, messages.length, markAllRead]);
+
+    useEffect(() => {
+        if (!socket) return;
+        const handleReadReceipt = (data) => {
+            if (data.chatId === chat?._id) {
+                setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+            }
+        };
+        socket.on("message-read", handleReadReceipt);
+        return () => socket.off("message-read", handleReadReceipt);
+    }, [socket, chat]);
+
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        const fileInput = document.getElementById('chat-image-upload');
+        const file = fileInput?.files[0];
+        
+        if (!newMessage.trim() && !file) return;
 
-        let messageParams = { senderId: currentUser, chatId: chat._id };
-        messageParams.text = sharedKey ? await encryptMessage(sharedKey, newMessage) : newMessage;
-        if (!sharedKey) console.warn("Sending unencrypted — recipient has no public key.");
+        const formData = new FormData();
+        formData.append('chatId', chat._id);
+        formData.append('senderId', currentUser);
+        
+        if (file) {
+            formData.append('image', file);
+        }
+
+        let encryptedText = newMessage;
+        if (newMessage.trim() && sharedKey) {
+            encryptedText = await encryptMessage(sharedKey, newMessage);
+        }
+        formData.append('text', encryptedText);
 
         const receiverId = chat.members.find((id) => id !== currentUser);
-        setSendMessage({ ...messageParams, receiverId });
-
+        
         try {
-            const { data } = await addMessage(messageParams);
+            const { data } = await API.post('/message', formData);
+            setSendMessage({ ...data, receiverId, text: encryptedText });
             setMessages([...messages, { ...data, text: newMessage }]);
             setNewMessage("");
+            if (fileInput) fileInput.value = "";
         } catch (error) { console.log(error); }
     };
 
@@ -326,31 +364,46 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                                     </span>
                                 </div>
                             ) : (
-                                <div
-                                    ref={scroll}
-                                    className={message.senderId === currentUser ? "message own" : "message"}
-                                    key={message._id || Math.random()}
-                                >
-                                    <span>{message.text}</span>
-                                    <span className="time">
-                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                            )
-                        ))}
-                    </div>
-
-                    {/* Input */}
-                    <div className="chat-sender">
-                        <input
-                            value={newMessage}
-                            onChange={handleInput}
-                            className="chat-input"
-                            placeholder="Message..."
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
-                        />
-                        <button className="send-button" onClick={handleSend}>Send</button>
-                    </div>
+                                    <div ref={scroll} className={message.senderId === currentUser ? "message own" : "message"} key={message._id || Math.random()}>
+                                        {message.image && (
+                                            <img 
+                                                src={`${API.defaults.baseURL.replace('/api', '')}${message.image}`} 
+                                                alt="sent" 
+                                                className="chat-image-msg" 
+                                                style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '5px' }}
+                                            />
+                                        )}
+                                        {message.text && <span>{message.text}</span>}
+                                        <div className="message-info-footer">
+                                            <span className="time">
+                                                {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                            {message.senderId === currentUser && (
+                                                <span className="read-status">
+                                                    {message.isRead ? " ✓✓ Seen" : " ✓ Sent"}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            ))}
+                        </div>
+    
+                        {/* Input */}
+                        <div className="chat-sender">
+                            <label htmlFor="chat-image-upload" className="image-upload-btn" style={{ cursor: 'pointer', padding: '0 10px', display: 'flex', alignItems: 'center' }}>
+                                📷
+                                <input type="file" id="chat-image-upload" hidden accept="image/*" />
+                            </label>
+                            <input
+                                value={newMessage}
+                                onChange={handleInput}
+                                className="chat-input"
+                                placeholder="Message..."
+                                onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
+                            />
+                            <button className="send-button" onClick={handleSend}>Send</button>
+                        </div>
 
                     {/* Active Call Overlay */}
                     {activeCall && (

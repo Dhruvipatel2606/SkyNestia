@@ -66,6 +66,7 @@ const userSchema = new Schema({
     // --- Posts ---
     posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
     savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+    savedStories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Story' }],
 
     // --- Privacy & State Machine ---
     isPrivate: {
@@ -105,6 +106,12 @@ const userSchema = new Schema({
         canComment: { type: Boolean, default: true },
         canMessage: { type: Boolean, default: true }
     },
+    violationCount: { type: Number, default: 0 },
+    violationHistory: [{
+        category: String,
+        timestamp: { type: Date, default: Date.now },
+        reasoning: String
+    }],
 
     // --- Security ---
     refreshToken: {

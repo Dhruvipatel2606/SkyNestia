@@ -7,12 +7,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/auth': 'http://localhost:5000',
-      '/user': 'http://localhost:5000',
-      '/post': 'http://localhost:5000',
-      '/comment': 'http://localhost:5000',
-      '/api': 'http://localhost:5000',
-      '/images': 'http://localhost:5000'
+      '/auth': 'http://localhost:5001',
+      '/user': 'http://localhost:5001',
+      '/post': 'http://localhost:5001',
+      '/comment': 'http://localhost:5001',
+      '/api': 'http://localhost:5001',
+      '/images': 'http://localhost:5001'
     }
   }
 })

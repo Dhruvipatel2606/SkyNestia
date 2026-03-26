@@ -1066,3 +1066,50 @@
         right: 16px;
     }
 }
+
+/* Chat Image Messages */
+.chat-image-msg {
+    display: block;
+    max-width: 250px !important;
+    max-height: 350px !important;
+    border-radius: 12px;
+    object-fit: cover;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.chat-image-msg:hover {
+    filter: brightness(0.9);
+}
+
+/* Message Footer (Time + Read Status) */
+.message-info-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.message .time {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    margin: 0;
+}
+
+.read-status {
+    font-size: 0.65rem;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.message.own .read-status {
+    color: #e0e0e0;
+}
+
+/* Image Upload Button Hover */
+.image-upload-btn:hover {
+    transform: scale(1.2);
+    transition: transform 0.2s;
+}

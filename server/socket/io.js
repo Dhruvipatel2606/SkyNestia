@@ -54,6 +54,14 @@ export const initIO = (httpServer) => {
             }
         });
 
+        socket.on("message-read", (data) => {
+            const { senderId } = data;
+            const user = activeUsers.find((u) => u.userId === senderId);
+            if (user) {
+                io.to(user.socketId).emit("message-read", data);
+            }
+        });
+
         // ───── Call Signaling ─────
 
         // Caller initiates a call
@@ -130,6 +138,27 @@ export const initIO = (httpServer) => {
             if (user) {
                 io.to(user.socketId).emit("ice-candidate", { ...data, from: socket.id });
             }
+        });
+
+        // ───── Real-Time Feed Updates ─────
+        socket.on("post-liked", (data) => {
+            // data: { postId, userId, likesCount, isLiked }
+            socket.broadcast.emit("post-liked", data);
+        });
+
+        socket.on("post-commented", (data) => {
+            // data: { postId, comment }
+            socket.broadcast.emit("post-commented", data);
+        });
+
+        socket.on("new-post", (data) => {
+            // data: { post }
+            socket.broadcast.emit("new-post", data);
+        });
+
+        socket.on("post-deleted", (data) => {
+            // data: { postId }
+            socket.broadcast.emit("post-deleted", data);
         });
 
         // ───── Disconnect ─────

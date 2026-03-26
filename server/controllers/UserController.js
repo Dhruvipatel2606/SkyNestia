@@ -1,6 +1,5 @@
 import UserModel from "../models/userModel.js";
 import { getCache, setCache, deleteCache } from "../services/cacheServices.js";
-import { redisClient } from "../config/redis.js";
 
 // Register
 export const register = async (req, res) => {
@@ -22,11 +21,44 @@ export const searchUser = async (req, res) => {
     if (!query) return res.status(400).json({ message: "Search query required" });
     try {
         const users = await UserModel.find({
-            username: { $regex: query, $options: "i" }
+            $or: [
+                { username: { $regex: query, $options: "i" } },
+                { firstname: { $regex: query, $options: "i" } },
+                { lastname: { $regex: query, $options: "i" } }
+            ]
         }).select("username firstname lastname profilePicture _id").limit(10);
         res.status(200).json(users);
     } catch (error) {
         res.status(500).json({ message: "Error searching users", error: error.message });
+    }
+};
+
+// Suggested users (Friends of Friends)
+export const suggestedUsers = async (req, res) => {
+    try {
+        const currentUser = await UserModel.findById(req.userId);
+        if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+        const following = currentUser.following || [];
+
+        // Simple algorithm: Users followed by people you follow
+        const friendsOfFriends = await UserModel.find({
+            _id: { $nin: [...following, req.userId] },
+            followers: { $in: following }
+        }).select("username profilePicture firstname lastname").limit(10);
+
+        // Fallback to random users if not enough
+        let suggestions = [...friendsOfFriends];
+        if (suggestions.length < 5) {
+            const extra = await UserModel.find({
+                _id: { $nin: [...following, ...suggestions.map(u => u._id), req.userId] }
+            }).select("username profilePicture firstname lastname").limit(5);
+            suggestions = [...suggestions, ...extra];
+        }
+
+        res.json(suggestions);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching suggestions", error: error.message });
     }
 };
 
@@ -202,10 +234,10 @@ export const followUser = async (req, res) => {
                 });
 
                 // Invalidate caches
-                await redisClient.del(`userProfile:${id}`);
-                await redisClient.del(`userProfile:${currentUserId}`);
-                await redisClient.del(`followers:${id}`);
-                await redisClient.del(`following:${currentUserId}`);
+                await deleteCache(`userProfile:${id}`);
+                await deleteCache(`userProfile:${currentUserId}`);
+                await deleteCache(`followers:${id}`);
+                await deleteCache(`following:${currentUserId}`);
 
                 res.status(200).json({ message: 'User followed successfully' });
             }
@@ -232,10 +264,10 @@ export const unfollowUser = async (req, res) => {
                 await unfollowUser.updateOne({ $pull: { followers: currentUserId } });
                 await unfollowingUser.updateOne({ $pull: { following: id } });
 
-                await redisClient.del(`userProfile:${id}`);
-                await redisClient.del(`userProfile:${currentUserId}`);
-                await redisClient.del(`followers:${id}`);
-                await redisClient.del(`following:${currentUserId}`);
+                await deleteCache(`userProfile:${id}`);
+                await deleteCache(`userProfile:${currentUserId}`);
+                await deleteCache(`followers:${id}`);
+                await deleteCache(`following:${currentUserId}`);
 
                 res.status(200).json({ message: 'User unfollowed successfully' });
             } else {
@@ -257,26 +289,10 @@ export const updateProfile = async (req, res) => {
             { new: true }
         ).select("-password");
 
-        await redisClient.del(`userProfile:${req.userId}`);
+        await deleteCache(`userProfile:${req.userId}`);
         res.json(user);
     } catch (error) {
         res.status(500).json({ message: 'Error updating profile', error: error.message });
-    }
-};
-
-// Suggested users
-export const suggestedUsers = async (req, res) => {
-    try {
-        const currentUser = await UserModel.findById(req.userId);
-        if (!currentUser) return res.status(404).json({ message: "User not found" });
-
-        const users = await UserModel.find({
-            _id: { $nin: [...(currentUser.following || []), req.userId] },
-        }).select("username profilePicture firstname lastname").limit(10);
-
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching suggestions", error: error.message });
     }
 };
 
@@ -295,13 +311,13 @@ export const getFollowers = async (req, res) => {
             return res.status(403).json({ message: 'This account is private' });
         }
 
-        const cachedFn = await redisClient.get(cacheKey);
+        const cachedFn = await getCache(cacheKey);
         if (cachedFn) {
-            return res.status(200).json(JSON.parse(cachedFn));
+            return res.status(200).json(cachedFn);
         }
 
         const followers = user.followers;
-        await redisClient.set(cacheKey, JSON.stringify(followers), { EX: 3600 });
+        await setCache(cacheKey, followers, 3600);
 
         res.status(200).json(followers);
     } catch (error) {
@@ -329,13 +345,13 @@ export const getFollowing = async (req, res) => {
             return res.status(403).json({ message: 'This account is private' });
         }
 
-        const cachedFn = await redisClient.get(cacheKey);
+        const cachedFn = await getCache(cacheKey);
         if (cachedFn) {
-            return res.status(200).json(JSON.parse(cachedFn));
+            return res.status(200).json(cachedFn);
         }
 
         const following = user.following;
-        await redisClient.set(cacheKey, JSON.stringify(following), { EX: 3600 });
+        await setCache(cacheKey, following, 3600);
 
         res.status(200).json(following);
     } catch (error) {
@@ -351,9 +367,9 @@ export const getMutualFollowers = async (req, res) => {
     const cacheKey = `mutual:${userId}:${currentUserId}`;
 
     try {
-        const cachedData = await redisClient.get(cacheKey);
+        const cachedData = await getCache(cacheKey);
         if (cachedData) {
-            return res.status(200).json(JSON.parse(cachedData));
+            return res.status(200).json(cachedData);
         }
 
         const viewingProfileUser = await UserModel.findById(userId);
@@ -370,7 +386,7 @@ export const getMutualFollowers = async (req, res) => {
         const commonIds = viewingProfileUser.followers.filter(id => currentUser.following.includes(id.toString()));
         const properMutuals = await UserModel.find({ _id: { $in: commonIds } }).select('username profilePicture firstname lastname');
 
-        await redisClient.set(cacheKey, JSON.stringify(properMutuals), { EX: 3600 });
+        await setCache(cacheKey, properMutuals, 3600);
         res.status(200).json(properMutuals);
 
     } catch (error) {
@@ -420,8 +436,8 @@ export const acceptFollowRequest = async (req, res) => {
         });
 
         // Clear cache
-        await redisClient.del(`userProfile:${currentUserId}`);
-        await redisClient.del(`userProfile:${requesterId}`);
+        await deleteCache(`userProfile:${currentUserId}`);
+        await deleteCache(`userProfile:${requesterId}`);
 
         res.status(200).json({ message: "Follow request accepted" });
 
@@ -788,10 +804,10 @@ export const blockUser = async (req, res) => {
 
             await deleteCache(`userProfile:${currentUserId}`);
             await deleteCache(`userProfile:${idToBlock}`);
-            await redisClient.del(`followers:${currentUserId}`);
-            await redisClient.del(`following:${currentUserId}`);
-            await redisClient.del(`followers:${idToBlock}`);
-            await redisClient.del(`following:${idToBlock}`);
+            await deleteCache(`followers:${currentUserId}`);
+            await deleteCache(`following:${currentUserId}`);
+            await deleteCache(`followers:${idToBlock}`);
+            await deleteCache(`following:${idToBlock}`);
 
             res.status(200).json({ message: "User blocked successfully" });
         } else {

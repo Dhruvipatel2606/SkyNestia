@@ -1,3 +1,4 @@
+server/public/
 node_modules/
 .env
 build
@@ -6,7 +7,3 @@ client/node_modules/
 server/node_modules/
 build/
 dist/
-<<<<<<< HEAD
-server/public/
-=======
->>>>>>> bbc84db91c6100900f950ea0a020b3135b1660bf

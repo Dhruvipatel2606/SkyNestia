@@ -7,7 +7,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 import { connectDB } from './config/mongodb.js';
-import "./config/redis.js";
+import { connectRedis } from './config/redis.js';
 import AuthRoute from './routes/AuthRoute.js';
 import UserRoute from './routes/UserRoute.js';
 import PostRoute from './routes/PostRoute.js';
@@ -18,11 +18,14 @@ import CommentRoute from './routes/CommentRoute.js';
 import NotificationRoute from './routes/NotificationRoute.js';
 import AdminRoute from './routes/AdminRoute.js';
 import ReportRoute from './routes/ReportRoute.js';
+import StoryRoute from './routes/StoryRoute.js';
+import HighlightRoute from './routes/HighlightRoute.js';
 
 const app = express();
 
-// Connect to MongoDB
+// Connect to MongoDB & Redis
 connectDB();
+await connectRedis();
 
 // Middleware
 app.use(bodyParser.json({ limit: '30mb', extended: true }));
@@ -49,6 +52,8 @@ app.use('/api/comment', CommentRoute);
 app.use('/api/notification', NotificationRoute);
 app.use('/api/admin', AdminRoute);
 app.use('/api/report', ReportRoute);
+app.use('/api/story', StoryRoute);
+app.use('/api/highlight', HighlightRoute);
 
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);

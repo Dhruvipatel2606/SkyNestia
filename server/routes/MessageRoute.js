@@ -1,9 +1,10 @@
 import express from 'express';
-import { addMessage, getMessages } from '../controllers/MessageController.js';
+import { addMessage, getMessages, upload, markAsRead } from '../controllers/MessageController.js';
 
 const router = express.Router();
 
-router.post('/', addMessage);
+router.post('/', upload.single('image'), addMessage);
 router.get('/:chatId', getMessages);
+router.put('/:chatId/read/:userId', markAsRead);
 
 export default router;

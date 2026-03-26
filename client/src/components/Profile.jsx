@@ -12,6 +12,8 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [highlights, setHighlights] = useState([]);
+  const [hasActiveStory, setHasActiveStory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   // Pagination State
@@ -65,23 +67,31 @@ const Profile = () => {
           firstname: userData.firstname || '',
           lastname: userData.lastname || '',
           bio: userData.bio || '',
-
           isPrivate: userData.isPrivate || false
         });
         setPreviewCover(userData.coverPicture ? getProfileImg(userData.coverPicture) : null);
 
+        // Fetch User Highlights
+        try {
+          const highlightRes = await API.get(`/highlight/${profileId}`);
+          setHighlights(highlightRes.data);
+        } catch (err) { console.error("Highlights load fail", err); }
+
+        // Fetch user active stories for the ring
+        try {
+          const storyRes = await API.get('/story');
+          const myStory = storyRes.data.filter(s => s.userId._id === profileId);
+          setHasActiveStory(myStory.length > 0);
+        } catch (err) { console.error("Story ring check fail", err); }
+
         // Fetch User Posts (Page 1)
         setPostsPage(1);
         const postsRes = await API.get(`/post/user/${profileId}?page=1&limit=9`);
-
-        // Handle Private Component Logic
         if (postsRes.data.isPrivate && postsRes.data.posts.length === 0) {
           setPosts([]);
-          // We can use a state to track strictly if it's locked, but we can derive it
         } else {
           setPosts(postsRes.data.posts || []);
         }
-
         setHasMorePosts(postsRes.data.hasMore);
 
       } catch (err) {
@@ -340,7 +350,7 @@ const Profile = () => {
       <div className="profile-header">
         {/* Left: Avatar */}
         <div className="profile-avatar-section">
-          <div className="avatar-container" onClick={() => isOwnProfile && setIsEditing(true)}>
+          <div className={`avatar-container ${hasActiveStory ? 'story-ring' : ''}`} onClick={() => isOwnProfile && setIsEditing(true)}>
             <img
               className="profile-avatar"
               src={getProfileImg(userProfile.profilePicture)}
@@ -420,21 +430,19 @@ const Profile = () => {
       {/* Highlights Section */}
       <div className="highlights-section">
         {
-          !isLocked ? (
-            userProfile.highlights && userProfile.highlights.map((highlight, index) => (
-              <div className="highlight-item" key={index}>
-                <div className="highlight-circle">
-                  <img src={highlight.cover} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                </div>
-                <span className="highlight-label">{highlight.title}</span>
+          !isLocked && highlights.map((highlight, index) => (
+            <div className="highlight-item" key={index} onClick={() => alert("Viewing legacy highlight: " + highlight.title)}>
+              <div className="highlight-circle">
+                <img src={getProfileImg(highlight.coverImage || highlight.stories[0]?.media)} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
               </div>
-            ))
-          ) : null
+              <span className="highlight-label">{highlight.title}</span>
+            </div>
+          ))
         }
 
         {
           isOwnProfile && (
-            <div className="highlight-item">
+            <div className="highlight-item" onClick={() => alert("Create Highlights by clicking ⭐ Highlight while viewing your story!")}>
               <div className="highlight-circle add-new">+</div>
               <span className="highlight-label">New</span>
             </div>

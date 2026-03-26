@@ -321,15 +321,28 @@ body::before {
 
 .btn.primary,
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), #1e293b);
+  background: linear-gradient(135deg, #0EA5E9, #2563EB);
   color: white;
-  box-shadow: 0 4px 14px rgba(10, 25, 47, 0.3);
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25);
+  border: none;
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.btn.primary:hover,
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(10, 25, 47, 0.4);
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+  filter: brightness(1.1);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .btn.secondary {
