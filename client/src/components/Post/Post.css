@@ -134,8 +134,8 @@
     object-fit: cover;
 }
 
-/* Dark mode override for avatar ring border */
-body.dark-mode .post-avatar {
+/* Theme-specific avatar border */
+[data-theme='dark'] .post-avatar {
     border-color: #000;
 }
 
@@ -203,21 +203,21 @@ body.dark-mode .post-avatar {
     font-weight: 600;
 }
 
-body.dark-mode .options-menu {
-    background-color: #1e293b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+[data-theme='dark'] .options-menu {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
 }
 
-body.dark-mode .option-item {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-    color: white;
+[data-theme='dark'] .option-item {
+    border-bottom-color: var(--border-color);
+    color: var(--text-main);
 }
 
-body.dark-mode .option-item:hover {
-    background-color: #334155;
+[data-theme='dark'] .option-item:hover {
+    background-color: var(--primary-light);
 }
 
-body.dark-mode .option-item.delete {
+[data-theme='dark'] .option-item.delete {
     color: #ef4444;
 }
 
@@ -600,23 +600,24 @@ body.dark-mode .option-item.delete {
 }
 
 /* Dark Mode Overrides */
-body.dark-mode .post-actions-bar .action-icon {
-    color: white;
+[data-theme='dark'] .post-actions-bar .action-icon {
+    color: var(--text-main);
 }
 
-body.dark-mode .more-btn,
-body.dark-mode .view-comments-btn,
-body.dark-mode .post-time {
-    color: #94a3b8;
+[data-theme='dark'] .more-btn,
+[data-theme='dark'] .view-comments-btn,
+[data-theme='dark'] .post-time {
+    color: var(--text-muted);
 }
 
-body.dark-mode .comment-form input {
-    color: white;
-    caret-color: white;
+[data-theme='dark'] .comment-form input {
+    color: var(--text-main);
+    caret-color: var(--secondary);
 }
 
-body.dark-mode .comment-form {
-    border-top-color: rgba(255, 255, 255, 0.1);
+[data-theme='dark'] .comment-form {
+    border-color: var(--border-color);
+    background: var(--card-bg);
 }
 
 @keyframes fadeIn {

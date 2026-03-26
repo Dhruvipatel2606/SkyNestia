@@ -8,13 +8,18 @@
     display: flex;
     flex-direction: column;
     padding: 1.5rem 1rem;
-    background: var(--primary-color);
+    background: var(--primary);
     /* Deep Navy Blue */
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid var(--border-color);
     z-index: 1000;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
     color: white;
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, background 0.5s ease;
+}
+
+[data-theme='dark'] .sidebar {
+    background: var(--background-start);
+    border-right: 1px solid var(--border-color);
 }
 
 .sidebar.collapsed {
@@ -42,7 +47,7 @@
 .sidebar-logo a {
     font-family: 'Great Vibes', cursive;
     font-size: 2.4rem;
-    background: linear-gradient(135deg, #fff 0%, var(--secondary-color) 100%);
+    background: whitesmoke;
     /* White to Sky Blue */
     -webkit-background-clip: text;
     background-clip: text;
@@ -135,7 +140,7 @@
     width: 260px;
     background: #1e293b;
     /* Slightly lighter than sidebar or same */
-    background: var(--primary-color);
+    background: var(--primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
@@ -291,39 +296,7 @@ input:checked+.slider::before {
     border-radius: 50%;
 }
 
-/* Dark Mode Global Overrides */
-/* When body has class 'dark-mode' */
-body.dark-mode {
-    --background-start: #0f172a;
-    --background-end: #020617;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --glass-bg: rgba(30, 41, 59, 0.95);
-    background: #020617 !important;
-    /* Force dark background */
-}
-
-body.dark-mode .post-card,
-body.dark-mode .card,
-body.dark-mode .nav {
-    background: #1e293b;
-    border-color: rgba(255, 255, 255, 0.05);
-    color: white;
-}
-
-body.dark-mode .post-user-info h4,
-body.dark-mode .comment-bubble strong {
-    color: white;
-}
-
-body.dark-mode .post-content {
-    color: #e2e8f0;
-}
-
-body.dark-mode .sidebar {
-    border-right-color: rgba(255, 255, 255, 0.05);
-}
-
+/* Dark Mode Global Overrides removed - handled by index.css variables */
 /* Tag Requests / Dropdown in Feed helpers */
 body.dark-mode .tag-requests-list {
     background: #1e293b !important;

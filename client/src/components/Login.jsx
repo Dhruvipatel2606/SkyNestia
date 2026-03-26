@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import API from '../api'
 
 export default function Login({ setUser }) {
     const [username, setUsername] = useState('')
@@ -15,30 +16,23 @@ export default function Login({ setUser }) {
         const usernameTrim = (username || '').trim()
 
         try {
-            const res = await fetch('/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usernameTrim, password })
-            })
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}))
-                setError(data.message || 'Login failed')
-                setIsLoading(false)
-                return
-            }
-            // on success - store user and token, then navigate to dashboard
-            const data = await res.json().catch(() => ({}))
+            const res = await API.post('/auth/login', { username: usernameTrim, password });
+            const data = res.data;
+
             if (data.user) {
-                sessionStorage.setItem('user', JSON.stringify(data.user))
-                if (setUser) setUser(data.user); // Update App state
+                const userStr = JSON.stringify(data.user);
+                sessionStorage.setItem('user', userStr);
+                localStorage.setItem('user', userStr);
+                if (setUser) setUser(data.user);
             }
             if (data.token) {
-                sessionStorage.setItem('token', data.token)
+                sessionStorage.setItem('token', data.token);
+                localStorage.setItem('token', data.token);
             }
-            navigate('/feed') // Direct to feed for better UX
+            navigate('/feed');
         } catch (err) {
-            setError('Network error. Please try again.')
-            setIsLoading(false)
+            setError(err.response?.data?.message || 'Network error. Please try again.');
+            setIsLoading(false);
         }
     }
 

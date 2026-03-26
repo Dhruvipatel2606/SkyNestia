@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { generateKeyPair, exportKey } from '../utils/Encryption';
+import API from '../api';
 
 export default function Register() {
     const [firstname, setFirstname] = useState('')
@@ -48,28 +49,18 @@ export default function Register() {
             const keysToStore = { publicKey: JSON.parse(pubJwk), privateKey: JSON.parse(privJwk) };
             localStorage.setItem('e2ee_keys', JSON.stringify(keysToStore));
 
-            const res = await fetch('/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username,
-                    email: emailTrim,
-                    password,
-                    firstname,
-                    lastname,
-                    publicKey: pubJwk // Send Public Key to Server
-                })
-            })
-            // ... rest of handler ...
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}))
-                setError(data.message || 'Registration failed')
-                setIsLoading(false)
-                return
-            }
+            await API.post('/auth/register', {
+                username,
+                email: emailTrim,
+                password,
+                firstname,
+                lastname,
+                publicKey: pubJwk // Send Public Key to Server
+            });
+            
             navigate('/login')
         } catch (err) {
-            setError('Network error. Please try again.')
+            setError(err.response?.data?.message || 'Network error. Please try again.')
             setIsLoading(false)
         }
     }

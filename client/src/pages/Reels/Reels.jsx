@@ -13,7 +13,8 @@ const Reels = () => {
     const [showCreate, setShowCreate] = useState(false);
     
     const containerRef = useRef(null);
-    const currentUser = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user'));
+    const userRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    const currentUser = userRaw ? JSON.parse(userRaw) : null;
 
     const fetchReels = useCallback(async () => {
         if (loading || !hasMore) return;

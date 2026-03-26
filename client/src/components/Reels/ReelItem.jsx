@@ -6,13 +6,13 @@ import API from '../../api';
 import './Reels.css';
 
 const ReelItem = ({ reel, currentUser }) => {
-    const [liked, setLiked] = useState(reel.likes.includes(currentUser._id));
-    const [likesCount, setLikesCount] = useState(reel.likes.length);
+    const [liked, setLiked] = useState(reel.likes?.some(id => (id._id || id).toString() === currentUser?._id));
+    const [likesCount, setLikesCount] = useState(reel.likes?.length || 0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [newComment, setNewComment] = useState("");
     const [comments, setComments] = useState(reel.comments || []);
-    const [isFollowed, setIsFollowed] = useState(reel.userId.followers?.includes(currentUser._id));
+    const [isFollowed, setIsFollowed] = useState(reel.userId?.followers?.some(id => (id._id || id).toString() === currentUser?._id));
     const [showLikeAnim, setShowLikeAnim] = useState(false);
     const navigate = useNavigate();
     
@@ -103,6 +103,7 @@ const ReelItem = ({ reel, currentUser }) => {
                 src={`${BASE_URL}${reel.video}`}
                 className="reel-video"
                 loop
+                muted
                 playsInline
             />
 

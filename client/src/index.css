@@ -3,39 +3,50 @@
 /* Global Variables & Theme */
 
 :root {
-  /* Navy Blue, White, Sky Blue Theme */
-  --primary-color: #0A192F;
-  /* Deep Navy Blue */
-  --secondary-color: #0EA5E9;
-  /* Sky Blue */
-  --accent-color: #38BDF8;
-  /* Lighter Sky Blue */
-
+  /* Light Theme (Default) */
   --primary: #0A192F;
   --primary-hover: #112240;
   --primary-light: #E0F2FE;
-
-  --secondary: #E0F2FE;
-
-  --dark: #020617;
-  --dark-glass: rgba(10, 25, 47, 0.9);
+  --secondary: #0EA5E9;
+  --accent: #38BDF8;
 
   --text-main: #0A192F;
   --text-muted: #475569;
-
   --background-start: #F8FAFC;
-  /* White/Light Grey */
   --background-end: #E0F2FE;
-  /* Fade to Light Sky Blue */
 
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 255, 255, 0.9);
   --glass-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.1);
 
+  --card-bg: #ffffff;
+  --sidebar-bg: rgba(255, 255, 255, 0.85);
+  --border-color: #f3f4f6;
+
   --transition-speed: 0.4s;
   --transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme='dark'] {
+  --primary: #60A5FA;
+  --primary-hover: #93C5FD;
+  --primary-light: #1E293B;
+  --secondary: #38BDF8;
+  --accent: #0284C7;
+
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --background-start: #020617;
+  --background-end: #0B1E3B;
+
+  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+
+  --card-bg: #111827;
+  --sidebar-bg: rgba(15, 23, 42, 0.9);
+  --border-color: rgba(255, 255, 255, 0.05);
+}
 /* Reset & Base */
 *,
 *::before,
@@ -179,7 +190,7 @@ body::before {
   font-size: 2.2rem;
   /* Matches the new script style */
   font-weight: 400;
-  background: linear-gradient(135deg, var(--secondary-color), var(--primary));
+  background: linear-gradient(135deg, var(--secondary), var(--primary));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -629,4 +640,39 @@ body::before {
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
   padding: 10px 15px !important;
+}
+
+/* Skeleton Shimmer Animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  background: var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+[data-theme='dark'] .skeleton::after {
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.05), 
+    transparent
+  );
 }

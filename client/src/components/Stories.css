@@ -9,9 +9,9 @@
     padding: 15px 0;
     gap: 15px;
     /* Glassmorphism card look */
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--glass-bg);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     margin-bottom: 20px;
     scrollbar-width: none;
@@ -42,8 +42,8 @@
     height: var(--story-size);
     border-radius: 50%;
     padding: 3px;
-    background: #fff;
-    border: 2px solid #ddd;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -114,7 +114,7 @@
 .story-username {
     font-size: 0.75rem;
     margin-top: 5px;
-    color: #333;
+    color: var(--text-main);
     max-width: 70px;
     overflow: hidden;
     white-space: nowrap;

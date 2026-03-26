@@ -85,7 +85,8 @@ export const likeReel = async (req, res) => {
         const userId = req.userId;
         const reel = await ReelModel.findById(id);
         
-        if (!reel.likes.includes(userId)) {
+        const isLiked = reel.likes.some(id => id.toString() === userId.toString());
+        if (!isLiked) {
             await reel.updateOne({ $push: { likes: userId } });
             res.status(200).json({ liked: true, likesCount: reel.likes.length + 1 });
         } else {

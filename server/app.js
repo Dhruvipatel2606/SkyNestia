@@ -1,9 +1,4 @@
-import dotenv from "dotenv";
-// Load environment variables
-dotenv.config();
-
 import express from 'express';
-import bodyParser from 'body-parser';
 import cors from 'cors';
 
 import { connectDB } from './config/mongodb.js';
@@ -29,12 +24,19 @@ connectDB();
 await connectRedis();
 
 // Middleware
-app.use(bodyParser.json({ limit: '30mb', extended: true }));
-app.use(bodyParser.urlencoded({ limit: '30mb', extended: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+const corsOptions = {
+    origin: ["http://localhost:3000", "http://localhost:5173"],
+    credentials: true,
+};
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ limit: '30mb', extended: true }));
 app.use(express.static('public'));
+
+// Welcome route
+app.get("/", (req, res) => {
+    return res.json({ message: "Welcome to the SkyNestia API", success: true });
+});
 
 // Routes
 app.use('/auth', AuthRoute);

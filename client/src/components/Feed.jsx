@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import Stories from "./Stories";
 import Post from "./Post/Post";
 import SuggestedUsers from "./SuggestedUsers";
-import './Stories.css'; // Add CSS too
+import './Stories.css';
+import PostSkeleton from "./Skeletons/PostSkeleton";
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -14,9 +15,13 @@ const Feed = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [tagRequests, setTagRequests] = useState([]);
+  const [followRequests, setFollowRequests] = useState([]);
+
+  const currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
 
   useEffect(() => {
     API.get('/post/tags/pending').then(res => setTagRequests(res.data)).catch(err => console.error(err));
+    API.get('/user/requests/pending').then(res => setFollowRequests(res.data)).catch(err => console.error(err));
   }, []);
 
   const handleTagAction = async (postId, status) => {
@@ -28,7 +33,14 @@ const Feed = () => {
     }
   };
 
-  const currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+  const handleFollowAction = async (requestId, action) => {
+    try {
+      await API.put(`/user/requests/${requestId}/${action}`);
+      setFollowRequests(prev => prev.filter(r => r._id !== requestId));
+    } catch (error) {
+       console.error('Follow action failed', error);
+    }
+  };
 
   const observer = useRef();
 
@@ -72,9 +84,15 @@ const Feed = () => {
   }, [page]);
 
   if (loading && page === 1) return (
-    <div className="feed-container" style={{ textAlign: 'center', marginTop: '50px' }}>
-      <div className="spinner"></div>
-      <p>Loading your feed...</p>
+    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      <div className="feed-container">
+        <PostSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
+      </div>
+      <div className="feed-sidebar">
+        <div className="card skeleton" style={{ height: '300px', borderRadius: '20px' }}></div>
+      </div>
     </div>
   );
 
@@ -128,6 +146,26 @@ const Feed = () => {
       </div>
 
       <div className="feed-sidebar">
+        {followRequests.length > 0 && (
+          <div className="card" style={{ marginBottom: '20px', padding: '15px' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '10px' }}>Follow Requests</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {followRequests.map(req => (
+                <div key={req._id} style={{ borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
+                    <img src={req.profilePicture ? (req.profilePicture.startsWith('http') ? req.profilePicture : `${API.defaults.baseURL.replace('/api', '')}/images/${req.profilePicture.split('/').pop()}`) : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                      alt="pic" style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
+                    <strong style={{ fontSize: '0.85rem' }}>{req.username}</strong>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button onClick={() => handleFollowAction(req._id, 'accept')} className="btn-primary" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Confirm</button>
+                    <button onClick={() => handleFollowAction(req._id, 'reject')} className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', background: '#fee2e2', color: '#b91c1c' }}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {tagRequests.length > 0 && (
           <div className="card" style={{ marginBottom: '20px', padding: '15px' }}>
             <h3 style={{ fontSize: '1rem', marginBottom: '10px' }}>Tag Requests</h3>

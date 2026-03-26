@@ -23,7 +23,8 @@ const PostSchema = new mongoose.Schema({
         reasoning: String,
         confidence: Number,
         timestamp: { type: Date, default: Date.now }
-    }
+    },
+    hiddenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }]
 }, { timestamps: true }
 );
 export default mongoose.model("Post", PostSchema);

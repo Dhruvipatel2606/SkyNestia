@@ -44,6 +44,7 @@ const Stories = () => {
         try {
             const res = await API.get('/story');
             const grouped = res.data.reduce((acc, story) => {
+                if (!story.userId) return acc;
                 const userId = story.userId._id;
                 if (!acc[userId]) {
                     acc[userId] = {

@@ -16,7 +16,8 @@ API.interceptors.request.use((req) => {
 API.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isLoginRequest = err.config?.url?.includes('/auth/login');
+    if (err.response?.status === 401 && !isLoginRequest) {
       // Token expired or invalid - redirect to login
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');

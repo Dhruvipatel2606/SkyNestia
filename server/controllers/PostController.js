@@ -470,7 +470,8 @@ export const getFeed = async (req, res) => {
                         { userId: req.userId }, // My posts
                         { visibility: 'followers', userId: { $in: followingIds } }
                     ]
-                }
+                },
+                { hiddenBy: { $ne: req.userId } }
             ]
         };
 
@@ -618,6 +619,17 @@ export const getExploreFeed = async (req, res) => {
         .populate('userId', 'username profilePicture');
 
         res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+export const hidePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
+        await postModel.findByIdAndUpdate(postId, { $addToSet: { hiddenBy: userId } });
+        res.status(200).json({ message: "Post hidden" });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

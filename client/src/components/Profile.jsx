@@ -290,6 +290,19 @@ const Profile = () => {
     }
   };
 
+  const handleReportUser = async (reason) => {
+    try {
+        await API.post('/report', {
+            targetType: 'user',
+            targetId: profileId,
+            reason
+        });
+        alert('Report submitted.');
+    } catch (err) {
+        alert('Failed to submit report');
+    }
+  };
+
 
   const getProfileImg = (img) => {
     if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
@@ -423,6 +436,12 @@ const Profile = () => {
                 <button className="action-btn danger-btn" onClick={handleBlock} style={{backgroundColor: '#ef4444', color: 'white', border: 'none'}}>
                   {currentUser?.blockedUsers?.includes(profileId) ? 'Unblock' : 'Block'}
                 </button>
+                <button className="action-btn" onClick={() => {
+                   const reason = window.prompt("Reason for reporting (harassment, spam, etc):");
+                   if(reason) handleReportUser(reason);
+                }} style={{color: '#666'}}>
+                  Report
+                </button>
                 <button className="action-btn" onClick={handleRestrict} style={{borderColor: '#ef4444', color: '#ef4444'}}>
                   {currentUser?.restrictedUsers?.includes(profileId) ? 'Unrestrict' : 'Restrict'}
                 </button>
@@ -498,7 +517,7 @@ const Profile = () => {
               <div key={post._id} className="photo-item" onClick={() => activeTab === 'reels' ? navigate('/reels') : navigate(`/post/${post._id}`)}>
                 {activeTab === 'reels' ? (
                    <div className="reel-thumbnail">
-                     <video src={`${BASE_URL}${post.video}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                     <video src={`${BASE_URL}${post.video}`} muted playsInline loop style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                      <div className="reel-overlay"><FiVideo /> <span>{post.views || 0}</span></div>
                    </div>
                 ) : imgUrl ? (
@@ -674,21 +693,19 @@ const Profile = () => {
       }
 
       {/* Full Post Modal */}
-      {
-        selectedPost && (
-          <div className="edit-overlay" style={{ zIndex: 1000 }}>
-            <div className="modal-content-wrapper">
-              <button className="close-modal-btn" onClick={() => setSelectedPost(null)}>&times;</button>
-              <Post post={selectedPost} />
-            </div>
-            {
-        activeHighlight && (
-          <HighlightViewer highlight={activeHighlight} onClose={() => setActiveHighlight(null)} />
-        )
-      }
-    </div>
-        )
-      }
+      {selectedPost && (
+        <div className="edit-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content-wrapper">
+            <button className="close-modal-btn" onClick={() => setSelectedPost(null)}>&times;</button>
+            <Post post={selectedPost} />
+          </div>
+        </div>
+      )}
+
+      {/* Highlight Viewer Modal */}
+      {activeHighlight && (
+        <HighlightViewer highlight={activeHighlight} onClose={() => setActiveHighlight(null)} />
+      )}
     </div>
   );
 };

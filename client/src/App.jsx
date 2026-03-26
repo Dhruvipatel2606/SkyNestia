@@ -59,12 +59,15 @@ export default function App() {
 
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  // Restore session
+  // Restore session and theme
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('user') || localStorage.getItem('user')
       if (raw) setUser(JSON.parse(raw))
-    } catch (e) { console.error('Failed to parse user session', e) }
+      
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    } catch (e) { console.error('Failed to parse user session/theme', e) }
   }, [])
 
   return (

@@ -223,11 +223,23 @@ const Post = ({ post }) => {
         return `${Math.floor(diffInDays / 7)}w`;
     };
 
-    const handleReport = async (reason) => {
+    const handleHide = async () => {
+        try {
+            await API.put(`/post/${post._id}/hide`);
+            // Visually remove it or just refresh
+            alert("Post hidden. You won't see this again in your feed.");
+            setShowOptions(false);
+            window.location.reload(); 
+        } catch (err) {
+            console.error("Hide error", err);
+        }
+    };
+
+    const handleReport = async (reason, type = 'post') => {
         try {
             await API.post('/report', {
-                targetType: 'post',
-                targetId: post._id,
+                targetType: type,
+                targetId: type === 'post' ? post._id : post.userId?._id,
                 reason
             });
             alert('Report submitted. Thank you for helping keep our community safe.');
@@ -281,17 +293,23 @@ const Post = ({ post }) => {
                             )}
                             {!isOwner && !reportMode && (
                                 <div className="option-item" onClick={() => setReportMode(true)} style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <FiFlag size={14} /> Report
+                                    <FiFlag size={14} /> Report Post
                                 </div>
+                            )}
+                            {!isOwner && !reportMode && (
+                                <div className="option-item" onClick={() => handleHide()}>Hide Post</div>
+                            )}
+                            {!isOwner && !reportMode && (
+                                <div className="option-item" onClick={() => setReportMode('user')} style={{ color: '#ef4444' }}>Report User</div>
                             )}
                             {reportMode && (
                                 <>
                                     {['spam', 'harassment', 'inappropriate', 'hate_speech', 'violence', 'other'].map(reason => (
-                                        <div key={reason} className="option-item" onClick={() => handleReport(reason)} style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
-                                            {reason.replace('_', ' ')}
-                                        </div>
-                                    ))}
-                                    <div className="option-item" onClick={() => { setReportMode(false); }}>← Back</div>
+                                         <div key={reason} className="option-item" onClick={() => handleReport(reason, reportMode === true ? 'post' : reportMode)} style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                                             {reason.replace('_', ' ')}
+                                         </div>
+                                     ))}
+                                     <div className="option-item" onClick={() => { setReportMode(false); }}>← Back</div>
                                 </>
                             )}
                             <div className="option-item" onClick={() => { setShowOptions(false); setReportMode(false); }}>Cancel</div>
@@ -547,7 +565,7 @@ const Post = ({ post }) => {
                                                 setNewComment(prev => prev + emoji.emoji);
                                                 setShowEmojiPicker(false);
                                             }}
-                                            theme="light"
+                                            theme={document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'}
                                             width={300}
                                             height={400}
                                             searchDisabled={false}

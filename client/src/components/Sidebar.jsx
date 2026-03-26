@@ -15,22 +15,18 @@ const Sidebar = ({ isOpen, toggle }) => {
 
     // Initialize dark mode from local storage or system preference
     const [darkMode, setDarkMode] = useState(() => {
-        const savedMode = localStorage.getItem('darkMode');
-        return savedMode === 'true';
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        return savedTheme === 'dark';
     });
 
     const menuRef = useRef(null);
 
-    const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+    const currentUser = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null');
 
     useEffect(() => {
-        if (darkMode) {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'true');
-        } else {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'false');
-        }
+        const theme = darkMode ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
     }, [darkMode]);
 
     const handleLogout = () => {
@@ -68,7 +64,7 @@ const Sidebar = ({ isOpen, toggle }) => {
         <div className={`sidebar ${!isOpen ? 'collapsed' : ''}`}>
             {/* Same Logo & Nav as before */}
             <div className="sidebar-logo" onClick={toggle} style={{ cursor: 'pointer' }} title={isOpen ? "Collapse" : "Expand"}>
-                {isOpen ? <Link to="#">SkyNestia</Link> : <span style={{ fontFamily: "'Great Vibes', cursive", fontSize: '1.8rem', color: 'white', background: 'linear-gradient(135deg, #fff 0%, var(--secondary-color) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SN</span>}
+                {isOpen ? <Link to="#">SkyNestia</Link> : <span style={{ fontFamily: "'Great Vibes', cursive", fontSize: '1.8rem', color: 'white', background: 'linear-gradient(135deg, #fff 0%, var(--secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SN</span>}
             </div>
 
             <nav className="sidebar-nav">

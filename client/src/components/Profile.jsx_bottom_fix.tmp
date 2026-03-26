@@ -1,0 +1,19 @@
+      {/* Full Post Modal */}
+      {selectedPost && (
+        <div className="edit-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content-wrapper">
+            <button className="close-modal-btn" onClick={() => setSelectedPost(null)}>&times;</button>
+            <Post post={selectedPost} />
+          </div>
+        </div>
+      )}
+
+      {/* Highlight Viewer Modal */}
+      {activeHighlight && (
+        <HighlightViewer highlight={activeHighlight} onClose={() => setActiveHighlight(null)} />
+      )}
+    </div>
+  );
+};
+
+export default Profile;
