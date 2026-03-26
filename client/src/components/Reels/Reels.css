@@ -1,0 +1,451 @@
+/* Reels Page Container */
+.reels-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    padding-top: 10px;
+    background: #000;
+}
+
+.reels-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.82);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+.reels-header h2 {
+    font-size: 1.5rem;
+    color: #fff;
+    font-family: 'Great Vibes', cursive;
+}
+
+.create-reel-btn {
+    background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-reel-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 39, 67, 0.3);
+}
+
+.reels-container {
+    flex: 1;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    height: 100%;
+}
+
+/* Individual Reel Item Styling */
+.reel-item {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+    scroll-snap-align: center;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.reel-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.reel-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    padding: 20px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.reel-sidebar {
+    position: absolute;
+    right: 15px;
+    bottom: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    z-index: 10;
+}
+
+.sidebar-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.sidebar-btn:hover {
+    transform: scale(1.1);
+}
+
+.sidebar-btn span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #eee;
+}
+
+.liked-icon {
+    transition: filter 0.2s ease;
+    filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.4));
+}
+
+.reel-info {
+    width: 85%;
+    margin-bottom: 20px;
+}
+
+.reel-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.reel-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+}
+
+.reel-username {
+    font-weight: 600;
+    font-size: 1rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.reel-follow-btn {
+    background: transparent;
+    border: 1px solid #fff;
+    color: #fff;
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.reel-follow-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.reel-caption {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.reel-music {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 4px 12px;
+    border-radius: 20px;
+    width: fit-content;
+    font-size: 0.85rem;
+    overflow: hidden;
+}
+
+.music-scroll {
+    white-space: nowrap;
+    animation: musicScroll 8s linear infinite;
+}
+
+@keyframes musicScroll {
+    0% { transform: translateX(10%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* Modal Styling */
+.create-reel-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.create-reel-modal-content {
+    background: #111;
+    width: 90%;
+    max-width: 850px;
+    height: 85%;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #fff;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.upload-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    background: #1a1a1a;
+    gap: 15px;
+}
+
+.btn-select {
+    background: #0095f6;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+.reel-creation-view {
+    display: flex;
+    height: 100%;
+}
+
+.preview-container {
+    flex: 1;
+    background: #000;
+    position: relative;
+    max-width: 50%;
+    height: 100%;
+}
+
+.creator-video-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.reel-details-form {
+    flex: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    background: #111;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #8e8e8e;
+}
+
+.form-group textarea, 
+.form-group input {
+    background: #262626;
+    border: 1px solid #363636;
+    border-radius: 8px;
+    padding: 12px;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.btn-upload {
+    background: #0095f6;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-discard {
+    background: transparent;
+    color: #ed4956;
+    border: none;
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.loading-reel {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+.reel-comments-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.reel-comments-content {
+    background: #262626;
+    border-radius: 20px 20px 0 0;
+    height: 60%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.comments-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.comments-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.comment-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.comment-item img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.comment-user {
+    font-size: 1rem;
+    color: #fff;
+    margin-right: 5px;
+}
+
+.comment-text {
+    font-size: 0.95rem;
+    color: #eee;
+}
+
+.comment-input-area {
+    border-top: 1px solid #333;
+    padding-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.comment-input-area input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+}
+
+.heart-animation-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 100;
+    animation: heartPop 0.8s ease-out forwards;
+}
+
+@keyframes heartPop {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+.btn-comment-send {
+    background: none;
+    border: none;
+    color: #0095f6;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-comment-send:hover {
+    color: #fff;
+}
+
+.reel-follow-btn.followed {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ccc;
+}

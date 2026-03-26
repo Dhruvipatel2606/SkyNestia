@@ -3,18 +3,22 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { createChat } from "../api/ChatRequests";
 import API from "../api.js";
 import Post from "./Post/Post";
-import { FiGrid, FiUser, FiEdit, FiCalendar } from "react-icons/fi";
+import { FiGrid, FiUser, FiEdit, FiCalendar, FiPlus, FiVideo } from "react-icons/fi";
 import "./Profile.css";
+import HighlightViewer from "./HighlightViewer";
+import { BASE_URL } from "../api";
 
 const Profile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [userReels, setUserReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [highlights, setHighlights] = useState([]);
   const [hasActiveStory, setHasActiveStory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [activeHighlight, setActiveHighlight] = useState(null);
 
   // Pagination State
   const [hasMorePosts, setHasMorePosts] = useState(true);
@@ -93,6 +97,12 @@ const Profile = () => {
           setPosts(postsRes.data.posts || []);
         }
         setHasMorePosts(postsRes.data.hasMore);
+
+        // Fetch User Reels
+        try {
+          const reelsRes = await API.get(`/reels/user/${profileId}`);
+          setUserReels(reelsRes.data);
+        } catch (err) { console.error("Reels load fail", err); }
 
       } catch (err) {
         console.error("Failed to load profile", err);
@@ -284,14 +294,14 @@ const Profile = () => {
   const getProfileImg = (img) => {
     if (!img) return "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
     if (img.startsWith("http")) return img;
-    return `${API.defaults.baseURL.replace('/api', '')}/images/${img.split('/').pop()}`;
+    return `${BASE_URL}/images/${img.split('/').pop()}`;
   };
 
   const getPostImg = (post) => {
     const img = post.image || (post.images && post.images[0]);
     if (!img) return null;
     if (img.startsWith("http")) return img;
-    return `${API.defaults.baseURL.replace('/api', '')}${img}`;
+    return `${BASE_URL}${img}`;
   };
 
   const handleMessage = async () => {
@@ -329,6 +339,7 @@ const Profile = () => {
   if (activeTab === 'posts') postsToRender = posts;
   else if (activeTab === 'drafts') postsToRender = drafts;
   else if (activeTab === 'scheduled') postsToRender = scheduled;
+  else if (activeTab === 'reels') postsToRender = userReels;
 
   return (
     <div className="profile-container">
@@ -431,7 +442,7 @@ const Profile = () => {
       <div className="highlights-section">
         {
           !isLocked && highlights.map((highlight, index) => (
-            <div className="highlight-item" key={index} onClick={() => alert("Viewing legacy highlight: " + highlight.title)}>
+            <div className="highlight-item" key={index} onClick={() => setActiveHighlight(highlight)}>
               <div className="highlight-circle">
                 <img src={getProfileImg(highlight.coverImage || highlight.stories[0]?.media)} alt={highlight.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
               </div>
@@ -458,6 +469,9 @@ const Profile = () => {
         <div className={`tab-item ${activeTab === 'tagged' ? 'active' : ''}`} title="Tagged" onClick={() => setActiveTab('tagged')}>
           <span className="tab-icon"><FiUser size={24} /></span>
         </div>
+        <div className={`tab-item ${activeTab === 'reels' ? 'active' : ''}`} title="Reels" onClick={() => setActiveTab('reels')}>
+          <span className="tab-icon"><FiVideo size={24} /></span>
+        </div>
         {isOwnProfile && (
             <div className={`tab-item ${activeTab === 'drafts' ? 'active' : ''}`} title="Drafts" onClick={() => setActiveTab('drafts')}>
               <span className="tab-icon"><FiEdit size={24} /></span>
@@ -481,8 +495,13 @@ const Profile = () => {
           {activeTab !== 'tagged' && postsToRender.map(post => {
             const imgUrl = getPostImg(post);
             return (
-              <div key={post._id} className="photo-item" onClick={() => navigate(`/post/${post._id}`)}>
-                {imgUrl ? (
+              <div key={post._id} className="photo-item" onClick={() => activeTab === 'reels' ? navigate('/reels') : navigate(`/post/${post._id}`)}>
+                {activeTab === 'reels' ? (
+                   <div className="reel-thumbnail">
+                     <video src={`${BASE_URL}${post.video}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                     <div className="reel-overlay"><FiVideo /> <span>{post.views || 0}</span></div>
+                   </div>
+                ) : imgUrl ? (
                   <img
                     src={imgUrl}
                     alt="post"
@@ -662,7 +681,12 @@ const Profile = () => {
               <button className="close-modal-btn" onClick={() => setSelectedPost(null)}>&times;</button>
               <Post post={selectedPost} />
             </div>
-          </div>
+            {
+        activeHighlight && (
+          <HighlightViewer highlight={activeHighlight} onClose={() => setActiveHighlight(null)} />
+        )
+      }
+    </div>
         )
       }
     </div>

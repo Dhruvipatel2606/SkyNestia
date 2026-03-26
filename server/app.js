@@ -20,6 +20,7 @@ import AdminRoute from './routes/AdminRoute.js';
 import ReportRoute from './routes/ReportRoute.js';
 import StoryRoute from './routes/StoryRoute.js';
 import HighlightRoute from './routes/HighlightRoute.js';
+import ReelRoute from './routes/ReelRoute.js';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/admin', AdminRoute);
 app.use('/api/report', ReportRoute);
 app.use('/api/story', StoryRoute);
 app.use('/api/highlight', HighlightRoute);
+app.use('/api/reels', ReelRoute);
 
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);

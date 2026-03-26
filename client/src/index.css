@@ -584,3 +584,49 @@ body::before {
 }
 
 /* Profile Specifics removed to allow Profile.css to take precedence */
+
+/* Emoji Picker Theme Overrides */
+.EmojiPickerReact {
+  --epr-bg-color: #ffffff !important;
+  --epr-category-label-bg-color: #ffffffd9 !important;
+  --epr-highlight-color: #0095f6 !important;
+  --epr-hover-bg-color: #f0f2f5 !important;
+  --epr-focus-bg-color: #f0f2f5 !important;
+  --epr-search-input-bg-color: #f0f2f5 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.epr-category-nav > button {
+  background: transparent !important;
+  border-radius: 8px !important;
+  opacity: 0.6 !important;
+}
+
+.epr-category-nav > button.epr-active {
+  background: #f0f2f5 !important;
+  opacity: 1 !important;
+}
+
+/* Fix for the blue "highlight" circles seen in screenshot */
+.epr-emoji-item {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.epr-emoji-item:hover {
+  transform: scale(1.3) !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.epr-emoji-category-label {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #a8a8a8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 10px 15px !important;
+}

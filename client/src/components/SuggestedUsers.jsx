@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSuggestedUsers, followUser, unfollowUser } from "../api/UserRequests";
+import { BASE_URL } from "../api";
 
 const SuggestedUsers = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const currentUser = JSON.parse(localStorage.getItem("user"));
+    const currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -41,7 +42,7 @@ const SuggestedUsers = () => {
                     <div key={user._id} className="suggested-user" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <img
-                                src={user.profilePicture ? `http://localhost:5000/images/${user.profilePicture}` : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                                src={user.profilePicture ? `${BASE_URL}/images/${user.profilePicture}` : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                                 alt={user.username}
                                 style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                             />

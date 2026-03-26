@@ -12,7 +12,8 @@ export default defineConfig({
       '/post': 'http://localhost:5001',
       '/comment': 'http://localhost:5001',
       '/api': 'http://localhost:5001',
-      '/images': 'http://localhost:5001'
+      '/images': 'http://localhost:5001',
+      '/chat': 'http://localhost:5001'
     }
   }
 })

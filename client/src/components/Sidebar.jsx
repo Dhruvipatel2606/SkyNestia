@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiSearch, FiCompass, FiMessageSquare, FiHeart, FiPlusSquare, FiUser, FiMenu, FiLogOut, FiSettings, FiActivity, FiBookmark, FiMoon, FiAlertCircle, FiChevronLeft } from 'react-icons/fi';
 import './Sidebar.css';
 import Notifications from './Notifications';
+import { BASE_URL } from '../api';
 
 const Sidebar = ({ isOpen, toggle }) => {
     const location = useLocation();
@@ -76,14 +77,27 @@ const Sidebar = ({ isOpen, toggle }) => {
                     {isOpen && <span>Home</span>}
                 </Link>
 
-                <div className="sidebar-link" title="Search">
+                <Link to="/search" className={`sidebar-link ${isActive('/search') ? 'active' : ''}`} title="Search">
                     <FiSearch className="sidebar-icon" />
                     {isOpen && <span>Search</span>}
-                </div>
+                </Link>
 
                 <Link to="/chat" className={`sidebar-link ${isActive('/chat') ? 'active' : ''}`} title="Messages">
                     <FiMessageSquare className="sidebar-icon" />
                     {isOpen && <span>Messages</span>}
+                </Link>
+
+                <Link to="/explore" className={`sidebar-link ${isActive('/explore') ? 'active' : ''}`} title="Explore">
+                    <FiCompass className="sidebar-icon" />
+                    {isOpen && <span>Explore</span>}
+                </Link>
+
+                <Link to="/reels" className={`sidebar-link ${isActive('/reels') ? 'active' : ''}`} title="Reels">
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <FiCompass className="sidebar-icon" />
+                        <span style={{ position: 'absolute', top: -5, right: -5, background: '#ed4956', width: 6, height: 6, borderRadius: '50%' }}></span>
+                    </div>
+                    {isOpen && <span>Reels</span>}
                 </Link>
 
                 <div className="sidebar-link" title="Notifications" onClick={() => setShowNotifications(!showNotifications)} style={{ cursor: 'pointer' }}>
@@ -100,7 +114,7 @@ const Sidebar = ({ isOpen, toggle }) => {
                     <div className="sidebar-profile-wrapper">
                         {currentUser.profilePicture ? (
                             <img
-                                src={currentUser.profilePicture.startsWith('http') ? currentUser.profilePicture : `http://localhost:5000/images/${currentUser.profilePicture.split('/').pop()}`}
+                                src={currentUser.profilePicture.startsWith('http') ? currentUser.profilePicture : `${BASE_URL}/images/${currentUser.profilePicture.split('/').pop()}`}
                                 alt="Profile"
                                 className="sidebar-avatar"
                                 onError={(e) => { e.target.onerror = null; e.target.src = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"; }}

@@ -28,7 +28,7 @@ const Feed = () => {
     }
   };
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
 
   const observer = useRef();
 

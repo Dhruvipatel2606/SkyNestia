@@ -24,6 +24,9 @@ import AdminReports from './components/Admin/AdminReports'
 import AdminAnalytics from './components/Admin/AdminAnalytics'
 import { SocketProvider } from './SocketContext'
 import useAppUsageTracker from './utils/useAppUsageTracker'
+import Reels from './pages/Reels/Reels'
+import Search from './components/Search'
+import Explore from './components/Explore'
 
 /* Wrapper that provides the regular sidebar + main layout */
 function AppLayout({ user, setUser, sidebarOpen, setSidebarOpen, children }) {
@@ -59,9 +62,9 @@ export default function App() {
   // Restore session
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem('user')
+      const raw = sessionStorage.getItem('user') || localStorage.getItem('user')
       if (raw) setUser(JSON.parse(raw))
-    } catch (e) { console.error('Failed to parse user from sessionStorage', e) }
+    } catch (e) { console.error('Failed to parse user session', e) }
   }, [])
 
   return (
@@ -97,7 +100,10 @@ export default function App() {
                 <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
                 <Route path="/settings" element={user ? <Settings /> : <Login setUser={setUser} />} />
                 <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
+                <Route path="/reels" element={user ? <Reels /> : <Login setUser={setUser} />} />
                 <Route path="/activity" element={user ? <YourActivity /> : <Login setUser={setUser} />} />
+                <Route path="/search" element={user ? <Search /> : <Login setUser={setUser} />} />
+                <Route path="/explore" element={user ? <Explore /> : <Login setUser={setUser} />} />
               </Routes>
             </AppLayout>
           } />

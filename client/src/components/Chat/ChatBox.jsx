@@ -121,14 +121,22 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
             setIsCaller(false);
         };
 
+        const handleCallEnded = () => {
+            setActiveCall(false);
+            setCallType(null);
+            setIsCaller(false);
+        };
+
         socket.on("incoming-call", handleIncomingCall);
         socket.on("call-rejected", handleCallRejected);
         socket.on("call-not-available", handleCallNotAvailable);
+        socket.on("call-ended", handleCallEnded);
 
         return () => {
             socket.off("incoming-call", handleIncomingCall);
             socket.off("call-rejected", handleCallRejected);
             socket.off("call-not-available", handleCallNotAvailable);
+            socket.off("call-ended", handleCallEnded);
         };
     }, [socket]);
 
@@ -143,7 +151,7 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         if (!user?.profilePicture) return "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
         if (typeof user.profilePicture === 'string' && user.profilePicture.startsWith('http')) return user.profilePicture;
         const picName = typeof user.profilePicture === 'string' ? user.profilePicture.split('/').pop() : "";
-        return `${API.defaults.baseURL.replace('/api', '')}/images/${picName}`;
+        return `${BASE_URL}/images/${picName}`;
     };
 
     const handleStartCall = (type) => {
@@ -248,9 +256,11 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         
         if (!newMessage.trim() && !file) return;
 
+        const receiverId = chat.members.find((id) => id !== currentUser);
         const formData = new FormData();
         formData.append('chatId', chat._id);
         formData.append('senderId', currentUser);
+        formData.append('receiverId', receiverId);
         
         if (file) {
             formData.append('image', file);
@@ -262,8 +272,6 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         }
         formData.append('text', encryptedText);
 
-        const receiverId = chat.members.find((id) => id !== currentUser);
-        
         try {
             const { data } = await API.post('/message', formData);
             setSendMessage({ ...data, receiverId, text: encryptedText });

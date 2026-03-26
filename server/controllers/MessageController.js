@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 export const upload = multer({ storage: storage });
 
 export const addMessage = async (req, res) => {
-    const { chatId, senderId, text, isCallLog, callDuration } = req.body;
+    const { chatId, senderId, receiverId, text, isCallLog, callDuration } = req.body;
     let imagePath = "";
     if (req.file) {
         imagePath = `/chat/${req.file.filename}`;
@@ -24,6 +24,7 @@ export const addMessage = async (req, res) => {
     const message = new MessageModel({
         chatId,
         senderId,
+        receiverId,
         text,
         image: imagePath,
         isCallLog: isCallLog || false,
