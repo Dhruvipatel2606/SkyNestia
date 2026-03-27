@@ -1,53 +1,271 @@
+:root {
+    --settings-bg: #f8f9fa;
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --danger-gradient: linear-gradient(135deg, #ff6b6b 0%, #ee5253 100%);
+}
+
 .settings-container {
-    padding: 20px;
-    max-width: 600px;
+    padding: 40px 20px;
+    max-width: 800px;
     margin: 0 auto;
-    color: var(--text-color);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.settings-container h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 30px;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.settings-tabs {
+    display: flex;
+    background: #fff;
+    padding: 5px;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 30px;
+    position: sticky;
+    top: 10px;
+    z-index: 100;
+}
+
+.settings-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.settings-tab.active {
+    background: var(--accent-gradient);
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3);
 }
 
 .settings-section {
-    background-color: var(--card-bg);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .settings-section h3 {
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
-    margin-bottom: 20px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 25px;
     color: var(--text-color);
 }
 
-.setting-item {
+.form-group label {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-input {
+    transition: all 0.2s ease;
+    border: 2px solid #eee !important;
+}
+
+.form-input:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+    outline: none;
+}
+
+.btn-premium {
+    background: var(--accent-gradient);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
-    flex-direction: column;
-    margin-bottom: 25px;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
-.setting-item:last-child {
-    margin-bottom: 0;
+.btn-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
 }
 
-.setting-item h4 {
-    margin: 0 0 5px 0;
-    font-size: 1.1em;
+.btn-premium:disabled {
+    opacity: 0.7;
+    transform: none;
 }
 
-.setting-item p {
-    margin: 0;
-    font-size: 0.9em;
+/* Switch Styling */
+.switch {
+    width: 60px !important;
+    height: 30px !important;
+}
+
+.switch span {
+    border-radius: 30px !important;
+}
+
+.switch span span {
+    width: 24px !important;
+    height: 24px !important;
+}
+
+/* Session Item */
+.session-item {
+    background: #fbfbff;
+    border: 1px solid #f0f0f5 !important;
+    transition: border-color 0.2s;
+}
+
+.session-item:hover {
+    border-color: #667eea !important;
+}
+
+/* Danger Section */
+.settings-section.danger {
+    border: 2px solid #fff5f5;
+}
+
+.btn-danger-premium {
+    background: var(--danger-gradient);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Support Tab Styles */
+.support-card {
+    background: #fff;
+    border: 1px solid #edf2f7;
+    padding: 20px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+.support-card:hover {
+    border-color: #667eea;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.1);
+}
+
+.support-card span {
+    font-size: 24px;
+    background: #f7fafc;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.support-card h5 {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.support-card p {
+    font-size: 0.85rem;
     color: var(--text-secondary);
 }
 
-@media (min-width: 600px) {
-    .setting-item {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .setting-item button {
-        margin-left: 20px;
-        min-width: 150px;
-    }
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.faq-item {
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.faq-item.open {
+    border-color: #667eea;
+    background: #fbfbff;
+}
+
+.faq-question {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.faq-answer {
+    padding: 0 20px 20px 20px;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.support-form-container {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 16px;
+}
+
+.support-form-container h4 {
+    margin-bottom: 20px;
+}
+
+.guidelines-section {
+    background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+    padding: 30px;
+    border-radius: 20px;
+    border: 1px dashed #cbd5e0;
+}
+
+.guidelines-list {
+    padding-left: 20px;
+    margin-bottom: 25px;
+}
+
+.guidelines-list li {
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    position: relative;
+}
+
+.btn-secondary-premium {
+    background: white;
+    color: var(--text-color);
+    border: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary-premium:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
 }

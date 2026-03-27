@@ -2,11 +2,14 @@ import mongoose from 'mongoose';
 
 const ReportSchema = new mongoose.Schema({
     reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
-    targetType: { type: String, enum: ['post', 'user'], required: true },
-    targetId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    targetType: { type: String, enum: ['post', 'user', 'system'], required: true },
+    targetId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        required: function() { return this.targetType !== 'system'; } 
+    },
     reason: {
         type: String,
-        enum: ['spam', 'harassment', 'inappropriate', 'hate_speech', 'violence', 'misinformation', 'other'],
+        enum: ['spam', 'harassment', 'inappropriate', 'hate_speech', 'violence', 'misinformation', 'bug', 'feedback', 'other'],
         required: true
     },
     description: { type: String, default: '', maxlength: 500 },

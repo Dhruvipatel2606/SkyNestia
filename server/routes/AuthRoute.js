@@ -9,7 +9,10 @@ import {
     verify2FA,
     forgotPassword,
     verifyOTP,
-    resetPassword
+    resetPassword,
+    getSessions,
+    revokeSession,
+    logoutAllDevices
 } from '../controllers/AuthController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -31,5 +34,10 @@ router.post('/2fa/verify', authMiddleware, verify2FA);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-otp', verifyOTP);
 router.post('/reset-password', resetPassword);
+
+// Session Management
+router.get('/sessions', authMiddleware, getSessions);
+router.delete('/sessions/:sessionId', authMiddleware, revokeSession);
+router.post('/logout-all', authMiddleware, logoutAllDevices);
 
 export default router; 

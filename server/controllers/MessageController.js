@@ -21,16 +21,32 @@ export const addMessage = async (req, res) => {
         imagePath = `/chat/${req.file.filename}`;
     }
 
-    const message = new MessageModel({
-        chatId,
-        senderId,
-        receiverId,
-        text,
-        image: imagePath,
-        isCallLog: isCallLog || false,
-        callDuration: callDuration || null
-    });
     try {
+        const receiver = await (await import("../models/userModel.js")).default.findById(receiverId);
+        if (!receiver) return res.status(404).json({ message: "Receiver not found" });
+
+        const setting = receiver.privacySettings?.messaging || 'everyone';
+        if (setting === 'none' && senderId !== receiverId) {
+            return res.status(403).json({ message: "This user has disabled direct messaging" });
+        }
+
+        if (setting === 'followers' && senderId !== receiverId) {
+            const isFollowing = receiver.followers.some(f => f.toString() === senderId);
+            if (!isFollowing) {
+                return res.status(403).json({ message: "Only followers can message this user" });
+            }
+        }
+
+        const message = new MessageModel({
+            chatId,
+            senderId,
+            receiverId,
+            text,
+            image: imagePath,
+            isCallLog: isCallLog || false,
+            callDuration: callDuration || null
+        });
+
         const result = await message.save();
         res.status(200).json(result);
     } catch (error) {

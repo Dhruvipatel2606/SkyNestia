@@ -5,6 +5,8 @@ import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { OAuth2Client } from 'google-auth-library';
 import sendEmail from '../utils/sendEmail.js';
+import SessionModel from '../models/sessionModel.js';
+import crypto from 'crypto';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -21,7 +23,7 @@ const generateAccessToken = (user) => {
 const generateRefreshToken = (user) => {
     return jwt.sign(
         { id: user._id },
-        process.env.JWT_REFRESH_SECRET || "REFRESH_SECRET_FALLBACK", // Ensure this env var exists
+        process.env.JWT_REFRESH_SECRET || "REFRESH_SECRET_FALLBACK",
         { expiresIn: '7d' }
     );
 };
@@ -57,20 +59,17 @@ export const registerUser = async (req, res) => {
 
         const savedUser = await newUser.save();
 
-        // Generate Tokens
         const accessToken = generateAccessToken(savedUser);
         const refreshToken = generateRefreshToken(savedUser);
 
-        // Save Refresh Token (Hashed in real app recommended, storing plain for now)
         savedUser.refreshToken = refreshToken;
         await savedUser.save();
 
-        // Send Refresh Token as HttpOnly Cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         const userResponse = savedUser.toObject();
@@ -99,7 +98,7 @@ export const loginUser = async (req, res) => {
 
         const user = await UserModel.findOne({
             $or: [{ username }, { email }]
-        }).select('+password +twoFactorEnabled +twoFactorSecret +refreshToken');
+        }).select('+password +twoFactorEnabled +twoFactorSecret +refreshToken +backupCodes');
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -112,17 +111,22 @@ export const loginUser = async (req, res) => {
                 return res.status(200).json({
                     message: '2FA required',
                     requires2FA: true,
-                    tempToken: jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' }) // Temp token to identify user for 2FA verify
+                    tempToken: jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' })
                 });
             }
 
-            const verified = speakeasy.totp.verify({
-                secret: user.twoFactorSecret,
-                encoding: 'base32',
-                token: code
-            });
-
-            if (!verified) return res.status(400).json({ message: 'Invalid 2FA code' });
+            if (code.length > 6) {
+                const backupCode = user.backupCodes.find(bc => bc.code === code && !bc.used);
+                if (!backupCode) return res.status(400).json({ message: 'Invalid or used backup code' });
+                backupCode.used = true;
+            } else {
+                const verified = speakeasy.totp.verify({
+                    secret: user.twoFactorSecret,
+                    encoding: 'base32',
+                    token: code
+                });
+                if (!verified) return res.status(400).json({ message: 'Invalid 2FA code' });
+            }
         }
 
         const accessToken = generateAccessToken(user);
@@ -132,6 +136,18 @@ export const loginUser = async (req, res) => {
         user.lastLogin = new Date();
         user.loginCount = (user.loginCount || 0) + 1;
         await user.save();
+
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        await SessionModel.create({
+            userId: user._id,
+            refreshToken,
+            ip: req.ip,
+            device: {
+                browser: userAgent.includes('Chrome') ? 'Chrome' : (userAgent.includes('Firefox') ? 'Firefox' : 'Other'),
+                os: userAgent.includes('Windows') ? 'Windows' : (userAgent.includes('Mac') ? 'Mac' : 'Other'),
+                userAgent: userAgent
+            }
+        });
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
@@ -144,6 +160,7 @@ export const loginUser = async (req, res) => {
         delete userResponse.password;
         delete userResponse.refreshToken;
         delete userResponse.twoFactorSecret;
+        delete userResponse.backupCodes;
 
         res.status(200).json({ message: 'Login successful', token: accessToken, user: userResponse });
     } catch (error) {
@@ -167,7 +184,6 @@ export const refreshAccessToken = async (req, res) => {
         }
 
         const newAccessToken = generateAccessToken(user);
-
         res.json({ token: newAccessToken });
     } catch (error) {
         res.status(403).json({ message: 'Expired or invalid refresh token' });
@@ -178,11 +194,12 @@ export const refreshAccessToken = async (req, res) => {
 export const logoutUser = async (req, res) => {
     try {
         const cookies = req.cookies;
-        if (!cookies?.refreshToken) return res.status(204).send(); // No content
+        if (!cookies?.refreshToken) return res.status(204).send();
 
         const refreshToken = cookies.refreshToken;
-        const user = await UserModel.findOne({ refreshToken });
+        await SessionModel.findOneAndDelete({ refreshToken });
 
+        const user = await UserModel.findOne({ refreshToken });
         if (user) {
             user.refreshToken = '';
             await user.save();
@@ -213,18 +230,18 @@ export const googleAuth = async (req, res) => {
                 await user.save();
             }
         } else {
-            const password = email + process.env.JWT_SECRET; // Dummy password for OAuth users (not used)
+            const password = email + process.env.JWT_SECRET;
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
 
             user = await UserModel.create({
-                username: email.split('@')[0], // Fallback username
+                username: email.split('@')[0],
                 email,
                 password: hashedPassword,
                 firstname: name,
                 googleId,
                 profilePicture: picture,
-                isVerified: true // Auto-verify email
+                isVerified: true
             });
         }
 
@@ -254,15 +271,27 @@ export const googleAuth = async (req, res) => {
 // Setup 2FA
 export const setup2FA = async (req, res) => {
     try {
-        const secret = speakeasy.generateSecret({ length: 20 });
-        const user = await UserModel.findById(req.userId); // req.userId from middleware
+        const secret = speakeasy.generateSecret({ length: 20, name: `SkyNestia:${req.userId}` });
+        const user = await UserModel.findById(req.userId);
 
         user.twoFactorSecret = secret.base32;
+        
+        if (!user.backupCodes || user.backupCodes.length === 0) {
+            const codes = [];
+            for (let i = 0; i < 8; i++) {
+                codes.push({ code: crypto.randomBytes(4).toString('hex').toUpperCase(), used: false });
+            }
+            user.backupCodes = codes;
+        }
+        
         await user.save();
-
         const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-        res.json({ secret: secret.base32, qrCodeUrl });
+        res.json({ 
+            secret: secret.base32, 
+            qrCodeUrl, 
+            backupCodes: user.backupCodes.filter(c => !c.used).map(c => c.code) 
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error setting up 2FA' });
     }
@@ -301,17 +330,13 @@ export const forgotPassword = async (req, res) => {
         const user = await UserModel.findOne({ email });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Generate 6 digit OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Save OTP to user (expires in 10 minutes)
         user.otp = {
             code: otpCode,
             expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         };
         await user.save();
 
-        // Send Email
         const message = `Your password reset OTP is: ${otpCode}. It expires in 10 minutes.`;
         await sendEmail({
             to: user.email,
@@ -335,19 +360,9 @@ export const verifyOTP = async (req, res) => {
         const user = await UserModel.findOne({ email });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        if (!user.otp || !user.otp.code) {
-            return res.status(400).json({ message: 'No OTP requested for this user' });
-        }
-
-        if (user.otp.code !== otp) {
-            return res.status(400).json({ message: 'Invalid OTP' });
-        }
-
-        if (new Date() > new Date(user.otp.expiresAt)) {
-            user.otp = undefined; // Clear expired OTP
-            await user.save();
-            return res.status(400).json({ message: 'OTP has expired' });
-        }
+        if (!user.otp || !user.otp.code) return res.status(400).json({ message: 'No OTP requested' });
+        if (user.otp.code !== otp) return res.status(400).json({ message: 'Invalid OTP' });
+        if (new Date() > new Date(user.otp.expiresAt)) return res.status(400).json({ message: 'OTP expired' });
 
         res.status(200).json({ message: 'OTP verified successfully' });
     } catch (error) {
@@ -359,38 +374,66 @@ export const verifyOTP = async (req, res) => {
 export const resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json({ message: 'Email, OTP, and new password are required' });
-        }
+        if (!email || !otp || !newPassword) return res.status(400).json({ message: 'Missing fields' });
 
         const user = await UserModel.findOne({ email });
-        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (!user || user.otp?.code !== otp) return res.status(400).json({ message: 'Invalid request' });
 
-        if (!user.otp || !user.otp.code) {
-            return res.status(400).json({ message: 'No OTP requested for this user' });
-        }
-
-        if (user.otp.code !== otp) {
-            return res.status(400).json({ message: 'Invalid OTP' });
-        }
-
-        if (new Date() > new Date(user.otp.expiresAt)) {
-            user.otp = undefined; // Clear expired OTP
-            await user.save();
-            return res.status(400).json({ message: 'OTP has expired' });
-        }
-
-        // Hash new password
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        // Update user
-        user.password = hashedPassword;
-        user.otp = undefined; // Clear OTP after successful reset
+        user.password = await bcrypt.hash(newPassword, salt);
+        user.otp = undefined;
         await user.save();
 
         res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error resetting password' });
+    }
+};
+
+// --- Session Management ---
+
+export const getSessions = async (req, res) => {
+    try {
+        const currentRefreshToken = req.cookies.refreshToken;
+        const sessions = await SessionModel.find({ userId: req.userId }).sort({ lastActive: -1 });
+        
+        const sessionsWithCurrent = sessions.map(session => ({
+            ...session.toObject(),
+            isCurrent: session.refreshToken === currentRefreshToken
+        }));
+
+        res.status(200).json(sessionsWithCurrent);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching sessions' });
+    }
+};
+
+export const revokeSession = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const session = await SessionModel.findById(sessionId);
+        
+        if (!session) return res.status(404).json({ message: 'Session not found' });
+        if (session.userId.toString() !== req.userId) return res.status(403).json({ message: 'Unauthorized' });
+
+        if (session.refreshToken === req.cookies.refreshToken) {
+            return res.status(400).json({ message: 'Cannot revoke current session. Use logout instead.' });
+        }
+
+        await SessionModel.findByIdAndDelete(sessionId);
+        res.status(200).json({ message: 'Session revoked' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error revoking session' });
+    }
+};
+
+export const logoutAllDevices = async (req, res) => {
+    try {
+        await SessionModel.deleteMany({ userId: req.userId });
+        await UserModel.findByIdAndUpdate(req.userId, { refreshToken: '' });
+        res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
+        res.status(200).json({ message: 'Logged out from all devices' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error logging out from all devices' });
     }
 };

@@ -16,6 +16,23 @@ export const addComment = async (req, res) => {
         
         // If it's a top-level comment, push to post's comment array
         if (!parentId) {
+            const post = await postModel.findById(postId).populate('userId', 'privacySettings followers');
+            if (!post) return res.status(404).json({ message: "Post not found" });
+
+            const owner = post.userId;
+            const setting = owner.privacySettings?.commenting || 'everyone';
+
+            if (setting === 'none' && owner._id.toString() !== userId) {
+                return res.status(403).json({ message: "Comments are disabled for this post" });
+            }
+
+            if (setting === 'followers' && owner._id.toString() !== userId) {
+                const isFollowing = owner.followers.some(f => f.toString() === userId);
+                if (!isFollowing) {
+                    return res.status(403).json({ message: "Only followers can comment on this post" });
+                }
+            }
+
             await postModel.findByIdAndUpdate(postId, { $push: { comments: newComment._id } });
         }
         

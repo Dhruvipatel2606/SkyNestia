@@ -108,6 +108,10 @@ export default function Register() {
                 <button className="btn primary" type="submit" disabled={isLoading}>
                     {isLoading ? 'Creating Account...' : 'Sign Up'}
                 </button>
+
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '15px' }}>
+                    By signing up, you agree to our <b>Terms</b>, <b>Privacy Policy</b> and <b>Cookie Policy</b>.
+                </p>
             </form>
 
             <div className="footer-note">

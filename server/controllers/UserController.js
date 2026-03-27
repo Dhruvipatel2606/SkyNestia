@@ -117,14 +117,23 @@ export const updateUserProfile = async (req, res) => {
 
         // Handle nested privacy settings update if provided
         if (req.body.privacySettings) {
-            // Ensure we merge with existing or overwrite carefully. 
-            // Mongoose might require dot notation for nested updates if not replacing whole object
-            // For now, assuming req.body.privacySettings is a complete object or we rely on Mongoose's merge
+             const privacy = typeof req.body.privacySettings === 'string' 
+                ? JSON.parse(req.body.privacySettings) 
+                : req.body.privacySettings;
+             
+             // Mongoose findByIdAndUpdate with { $set: { 'privacySettings.messaging': ... } } 
+             // is often safer for nested fields, but let's just merge it into updateData for now 
+             // if the frontend sends the whole object or we handle it in the model save.
+             // Actually, the most robust way is dot notation:
+             Object.keys(privacy).forEach(key => {
+                 updateData[`privacySettings.${key}`] = privacy[key];
+             });
+             delete updateData.privacySettings;
         }
 
         const updatedUser = await UserModel.findByIdAndUpdate(
             req.params.id,
-            updateData,
+            { $set: updateData },
             { new: true }
         ).select('-password');
 
@@ -307,8 +316,15 @@ export const getFollowers = async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         // Privacy Check
-        if (user.isPrivate && userId !== currentUserId && !user.followers.some(f => f._id.toString() === currentUserId)) {
+        const isOwner = userId === currentUserId;
+        const isFollowing = user.followers.some(f => f._id.toString() === currentUserId);
+
+        if (user.isPrivate && !isOwner && !isFollowing) {
             return res.status(403).json({ message: 'This account is private' });
+        }
+
+        if (user.hideFollowers && !isOwner) {
+            return res.status(403).json({ message: 'Followers list is hidden by the user' });
         }
 
         const cachedFn = await getCache(cacheKey);
@@ -335,14 +351,16 @@ export const getFollowing = async (req, res) => {
         const user = await UserModel.findById(userId).populate('following', 'username profilePicture firstname lastname');
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Privacy Check (Using followers list because 'user' object has 'followers' populated? No, checking logic)
-        // Check if I am allowed to see their info.
-        // I need 'followers' to check if I am following them.
-        const userWithFollowers = await UserModel.findById(userId).select('followers isPrivate');
+        const userWithFollowers = await UserModel.findById(userId).select('followers isPrivate hideFollowing');
         const isFollowing = userWithFollowers.followers.includes(currentUserId);
+        const isOwner = userId === currentUserId;
 
-        if (userWithFollowers.isPrivate && userId !== currentUserId && !isFollowing) {
+        if (userWithFollowers.isPrivate && !isOwner && !isFollowing) {
             return res.status(403).json({ message: 'This account is private' });
+        }
+
+        if (userWithFollowers.hideFollowing && !isOwner) {
+            return res.status(403).json({ message: 'Following list is hidden by the user' });
         }
 
         const cachedFn = await getCache(cacheKey);

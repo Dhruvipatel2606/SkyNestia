@@ -76,8 +76,21 @@ const userSchema = new Schema({
     privacySettings: {
         messaging: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' },
         storyView: { type: String, enum: ['everyone', 'followers', 'close_friends'], default: 'everyone' },
-        tagging: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' }
+        tagging: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' },
+        commenting: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' }
     },
+    hideFollowers: {
+        type: Boolean,
+        default: false,
+    },
+    hideFollowing: {
+        type: Boolean,
+        default: false,
+    },
+    backupCodes: [{
+        code: String,
+        used: { type: Boolean, default: false }
+    }],
 
     // --- Attributes ---
     isAdmin: {
