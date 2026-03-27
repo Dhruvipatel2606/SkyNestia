@@ -100,7 +100,7 @@ export const decryptMessage = async (sharedKey, encryptedJSON) => {
         const dec = new TextDecoder();
         return dec.decode(decrypted);
     } catch (e) {
-        console.error(e);
-        return "Error decrypting";
+        console.error("Decryption failed:", e);
+        return "Decryption Error (Device sync or key reset may be needed)";
     }
 };

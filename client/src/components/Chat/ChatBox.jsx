@@ -4,12 +4,12 @@ import { getUser } from "../../api/UserRequests";
 import API from "../../api.js";
 import "./Chat.css";
 import { useSocket } from "../../SocketContext";
-import { importKey, deriveSharedKey, encryptMessage, decryptMessage } from '../../utils/Encryption';
+import { importKey, deriveSharedKey, encryptMessage, decryptMessage, exportKey, generateKeyPair } from '../../utils/Encryption';
 import { FiArrowLeft, FiVideo, FiPhone } from 'react-icons/fi';
 import VideoCall from "./VideoCall";
 import IncomingCall from "./IncomingCall";
 
-const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, onlineUsers }) => {
+const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, onlineUsers, e2eeStatus }) => {
     const socket = useSocket();
     const [userData, setUserData] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -70,29 +70,33 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                             return { ...msg, text: decText };
                         } catch (e) { return msg; }
                     });
-                    setMessages(await Promise.all(decryptedPromises));
+                    const decrypted = await Promise.all(decryptedPromises);
+                    setMessages(decrypted);
                 } else {
                     setMessages(data);
                 }
             } catch (error) { console.log(error); }
         };
         if (chat !== null) fetchMessages();
-    }, [chat, sharedKey]);
+    }, [chat?._id, sharedKey]);
 
     // Receive Message
     useEffect(() => {
         if (receiveMessage !== null && receiveMessage.chatId === chat?._id) {
             const processIncoming = async () => {
+                let decText = receiveMessage.text;
                 if (sharedKey) {
-                    const decText = await decryptMessage(sharedKey, receiveMessage.text);
-                    setMessages((prev) => [...prev, { ...receiveMessage, text: decText }]);
-                } else {
-                    setMessages((prev) => [...prev, receiveMessage]);
+                    decText = await decryptMessage(sharedKey, receiveMessage.text);
                 }
+                setMessages((prev) => {
+                    // Prevent duplicate if already fetched or received
+                    if (prev.find(m => m._id === receiveMessage._id)) return prev;
+                    return [...prev, { ...receiveMessage, text: decText }];
+                });
             };
             processIncoming();
         }
-    }, [receiveMessage]);
+    }, [receiveMessage, chat?._id, sharedKey]);
 
     // ───── Call Socket Listeners ─────
     useEffect(() => {
@@ -275,7 +279,7 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         try {
             const { data } = await API.post('/message', formData);
             setSendMessage({ ...data, receiverId, text: encryptedText });
-            setMessages([...messages, { ...data, text: newMessage }]);
+            setMessages(prev => [...prev, { ...data, text: newMessage }]);
             setNewMessage("");
             if (fileInput) fileInput.value = "";
         } catch (error) { console.log(error); }
@@ -301,6 +305,28 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
             socket.off("stop-typing", handleStopTyping);
         };
     }, [chat, currentUser, socket]);
+
+    const handleResetKeys = async () => {
+        if (window.confirm("WARNING: This will generate new encryption keys. You will be able to send/receive NEW messages, but all OLD messages in all chats will become unreadable. Proceed?")) {
+          try {
+            const keyPair = await generateKeyPair();
+            const pubJwk = await exportKey(keyPair.publicKey);
+            const privJwk = await exportKey(keyPair.privateKey);
+    
+            const keysToStore = { publicKey: JSON.parse(pubJwk), privateKey: JSON.parse(privJwk) };
+            localStorage.setItem('e2ee_keys', JSON.stringify(keysToStore));
+    
+            // Update public key on server
+            await API.put(`/user/update/${currentUser}`, { publicKey: pubJwk });
+            
+            alert("Encryption keys reset successfully. Future messages will work correctly.");
+            window.location.reload(); 
+          } catch (err) {
+            console.error("Key reset failed", err);
+            alert("Failed to reset keys");
+          }
+        }
+    };
 
     const handleInput = (e) => {
         setNewMessage(e.target.value);
@@ -356,6 +382,17 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                             </button>
                         </div>
                     </div>
+
+                    {e2eeStatus === 'missing_local' && (
+                        <div style={{ backgroundColor: '#fff7ed', padding: '12px 20px', borderBottom: '1px solid #fed7aa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.85rem', color: '#9a3412' }}>
+                                ⚠️ <strong>Encryption keys missing.</strong> You can't read messages on this device.
+                            </span>
+                            <button onClick={handleResetKeys} style={{ backgroundColor: '#f97316', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                                Reset to Fix
+                            </button>
+                        </div>
+                    )}
 
                     {/* Messages */}
                     <div className="chat-body">

@@ -10,7 +10,8 @@ export default function ChatLayout({
     currentUser,
     sendMessage,
     receiveMessage,
-    setSendMessage
+    setSendMessage,
+    e2eeStatus
 }) {
     return (
         <div className={`chatLayout ${currentChat ? 'chat-active' : ''}`}>
@@ -28,6 +29,7 @@ export default function ChatLayout({
                 receiveMessage={receiveMessage}
                 setChat={setCurrentChat} // Pass handler for back button
                 onlineUsers={onlineUsers}
+                e2eeStatus={e2eeStatus}
             />
         </div>
     );

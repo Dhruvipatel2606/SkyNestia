@@ -16,6 +16,7 @@ import ReportRoute from './routes/ReportRoute.js';
 import StoryRoute from './routes/StoryRoute.js';
 import HighlightRoute from './routes/HighlightRoute.js';
 import ReelRoute from './routes/ReelRoute.js';
+import morgan from 'morgan';
 
 const app = express();
 
@@ -29,6 +30,7 @@ const corsOptions = {
     credentials: true,
 };
 app.use(cors(corsOptions));
+app.use(morgan('dev'));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ limit: '30mb', extended: true }));
 app.use(express.static('public'));
@@ -62,5 +64,28 @@ app.use('/api/reels', ReelRoute);
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);
 app.use("/api/user", UserRoute);
+
+// Catch-all for non-existent routes
+app.use((req, res, next) => {
+    const err = new Error(`Can't find ${req.originalUrl} on this server!`);
+    err.status = 'fail';
+    err.statusCode = 404;
+    next(err);
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    err.statusCode = err.statusCode || 500;
+    err.status = err.status || 'error';
+
+    console.error(`ERROR: ${err.message}`);
+    console.error(err.stack);
+
+    res.status(err.statusCode).json({
+        status: err.status,
+        message: err.message,
+        ...(process.env.NODE_ENV === 'development' && { error: err, stack: err.stack })
+    });
+});
 
 export default app;

@@ -5,7 +5,9 @@ import Stories from "./Stories";
 import Post from "./Post/Post";
 import SuggestedUsers from "./SuggestedUsers";
 import './Stories.css';
+import './AutoScrollStyles.css';
 import PostSkeleton from "./Skeletons/PostSkeleton";
+import { FiPlay, FiSquare, FiChevronDown } from 'react-icons/fi';
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -16,6 +18,9 @@ const Feed = () => {
   const [page, setPage] = useState(1);
   const [tagRequests, setTagRequests] = useState([]);
   const [followRequests, setFollowRequests] = useState([]);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(1);
+  const scrollRequestRef = useRef(null);
 
   const currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
 
@@ -83,8 +88,27 @@ const Feed = () => {
     fetchFeed();
   }, [page]);
 
+  useEffect(() => {
+    const scroll = () => {
+      if (isAutoScrolling) {
+        window.scrollBy(0, scrollSpeed);
+        scrollRequestRef.current = requestAnimationFrame(scroll);
+      }
+    };
+
+    if (isAutoScrolling) {
+      scrollRequestRef.current = requestAnimationFrame(scroll);
+    } else {
+      if (scrollRequestRef.current) cancelAnimationFrame(scrollRequestRef.current);
+    }
+
+    return () => {
+      if (scrollRequestRef.current) cancelAnimationFrame(scrollRequestRef.current);
+    };
+  }, [isAutoScrolling, scrollSpeed]);
+
   if (loading && page === 1) return (
-    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px', maxWidth: '1250px', margin: '0 auto' }}>
       <div className="feed-container">
         <PostSkeleton />
         <PostSkeleton />
@@ -99,9 +123,9 @@ const Feed = () => {
   if (error && page === 1) return <div className="card error-card"><p>Error: {error}</p></div>;
 
   return (
-    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px', maxWidth: '1250px', margin: '0 auto' }}>
       <div className="feed-container">
-        <div className="feed-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="sticky-feed-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {currentUser && currentUser._id && (
               <Link to={`/profile/${currentUser._id}`}>
@@ -115,7 +139,39 @@ const Feed = () => {
             )}
             <h2>News Feed</h2>
           </div>
-          <Link to="/create-post" className="create-post-btn">Create Post</Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button 
+                onClick={() => setIsAutoScrolling(!isAutoScrolling)}
+                className={`premium-auto-btn ${isAutoScrolling ? 'active' : ''}`}
+              >
+                <span className="btn-icon">
+                  {isAutoScrolling ? <FiSquare /> : <FiPlay />}
+                </span>
+                {isAutoScrolling ? "Stop Scroll" : "Auto Scroll"}
+                <span className="premium-tooltip">
+                  {isAutoScrolling 
+                    ? "Tap to stop auto-scrolling" 
+                    : "Automatically scroll through your feed. Adjust speed with the 1x-3x toggle!"}
+                </span>
+              </button>
+              
+              {isAutoScrolling && (
+                <div className="speed-control">
+                  {[1, 2, 3].map(speed => (
+                    <div 
+                      key={speed}
+                      className={`speed-option ${scrollSpeed === speed ? 'selected' : ''}`}
+                      onClick={() => setScrollSpeed(speed)}
+                    >
+                      {speed}x
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Link to="/create-post" className="create-post-btn">Create Post</Link>
+          </div>
         </div>
 
         <Stories />
@@ -188,6 +244,17 @@ const Feed = () => {
         )}
         <SuggestedUsers />
       </div>
+      
+      {isAutoScrolling && (
+        <div className="auto-scroll-indicator">
+          <div className="scroll-wave">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span>Auto-scrolling at {scrollSpeed}x speed</span>
+        </div>
+      )}
     </div>
   );
 };

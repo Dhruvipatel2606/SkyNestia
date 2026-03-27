@@ -5,7 +5,7 @@ import { BASE_URL } from '../../api';
 import API from '../../api';
 import './Reels.css';
 
-const ReelItem = ({ reel, currentUser }) => {
+const ReelItem = ({ reel, currentUser, onVideoEnd, isAutoAdvance }) => {
     const [liked, setLiked] = useState(reel.likes?.some(id => (id._id || id).toString() === currentUser?._id));
     const [likesCount, setLikesCount] = useState(reel.likes?.length || 0);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -14,6 +14,7 @@ const ReelItem = ({ reel, currentUser }) => {
     const [comments, setComments] = useState(reel.comments || []);
     const [isFollowed, setIsFollowed] = useState(reel.userId?.followers?.some(id => (id._id || id).toString() === currentUser?._id));
     const [showLikeAnim, setShowLikeAnim] = useState(false);
+    const [progress, setProgress] = useState(0);
     const navigate = useNavigate();
     
     const videoRef = useRef(null);
@@ -23,13 +24,17 @@ const ReelItem = ({ reel, currentUser }) => {
         observer.current = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    videoRef.current.play();
-                    setIsPlaying(true);
+                    if (videoRef.current) {
+                        videoRef.current.play().catch(err => console.error("Autoplay failed:", err));
+                        setIsPlaying(true);
+                    }
                     // Increment view
                     API.put(`/reels/${reel._id}/view`).catch(() => {});
                 } else {
-                    videoRef.current.pause();
-                    setIsPlaying(false);
+                    if (videoRef.current) {
+                        videoRef.current.pause();
+                        setIsPlaying(false);
+                    }
                 }
             });
         }, { threshold: 0.8 });
@@ -40,6 +45,21 @@ const ReelItem = ({ reel, currentUser }) => {
 
         return () => observer.current?.disconnect();
     }, [reel._id]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handleTimeUpdate = () => {
+            if (isAutoAdvance && video.duration) {
+                const p = (video.currentTime / video.duration) * 100;
+                setProgress(p);
+            }
+        };
+
+        video.addEventListener('timeupdate', handleTimeUpdate);
+        return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    }, [isAutoAdvance]);
 
     const handleTogglePlay = (e) => {
         // Only toggle if not clicking on buttons/drawer
@@ -102,10 +122,20 @@ const ReelItem = ({ reel, currentUser }) => {
                 ref={videoRef}
                 src={`${BASE_URL}${reel.video}`}
                 className="reel-video"
-                loop
+                loop={!isAutoAdvance}
                 muted
                 playsInline
+                onEnded={onVideoEnd}
             />
+
+            {isAutoAdvance && (
+                <div className="auto-advance-progress-container">
+                    <div 
+                        className="auto-advance-progress-bar" 
+                        style={{ width: `${progress}%` }}
+                    ></div>
+                </div>
+            )}
 
             {showLikeAnim && (
                 <div className="heart-animation-overlay">

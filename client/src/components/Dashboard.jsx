@@ -44,7 +44,7 @@ export default function Dashboard() {
     const displayName = user ? (user.firstname || user.username || user.email) : ''
 
     return (
-        <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1250px', width: '100%', margin: '0 auto' }}>
             <div className="card" style={{ marginBottom: '20px' }}>
                 <h2>Welcome{displayName ? `, ${displayName}` : ''}!</h2>
                 <p className="muted">You are now logged in.</p>

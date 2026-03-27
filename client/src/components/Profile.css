@@ -20,7 +20,7 @@ body.dark-mode {
 }
 
 .profile-container {
-    max-width: 935px;
+    max-width: 1250px;
     margin: 0 auto;
     padding: 30px 20px 0;
     background-color: var(--bg-color);

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import API from '../../api';
 import '../../components/Reels/Reels.css';
+import '../../components/AutoScrollStyles.css';
 import ReelItem from '../../components/Reels/ReelItem';
 import CreateReel from '../../components/Reels/CreateReel';
-import { FiPlusSquare, FiMusic, FiChevronUp } from 'react-icons/fi';
+import { FiPlusSquare, FiMusic, FiChevronUp, FiPlay, FiSquare, FiZap } from 'react-icons/fi';
 
 const Reels = () => {
     const [reels, setReels] = useState([]);
@@ -11,6 +12,7 @@ const Reels = () => {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
+    const [isAutoAdvance, setIsAutoAdvance] = useState(false);
     
     const containerRef = useRef(null);
     const userRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
@@ -57,6 +59,18 @@ const Reels = () => {
         return () => container?.removeEventListener('scroll', handleScroll);
     }, [fetchReels, loading, hasMore]);
 
+    const handleVideoEnd = (index) => {
+        if (!isAutoAdvance) return;
+        const container = containerRef.current;
+        if (container && index < reels.length - 1) {
+            const nextScrollTop = (index + 1) * container.clientHeight;
+            container.scrollTo({
+                top: nextScrollTop,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     return (
         <div className="reels-page">
             <div className="reels-header">
@@ -64,11 +78,31 @@ const Reels = () => {
                 <button className="create-reel-btn" onClick={() => setShowCreate(true)}>
                     <FiPlusSquare /> Create Reel
                 </button>
+                <button 
+                    className={`premium-auto-btn ${isAutoAdvance ? 'active' : ''}`}
+                    onClick={() => setIsAutoAdvance(!isAutoAdvance)}
+                >
+                    <span className="btn-icon">
+                        {isAutoAdvance ? <FiZap /> : <FiPlay />}
+                    </span>
+                    {isAutoAdvance ? "Auto Advance On" : "Auto Advance"}
+                    <span className="premium-tooltip">
+                        {isAutoAdvance 
+                            ? "Auto-advance is active. Videos will switch automatically!" 
+                            : "Enable to automatically jump to the next reel when one finishes."}
+                    </span>
+                </button>
             </div>
 
             <div className="reels-container" ref={containerRef}>
                 {reels.map((reel, idx) => (
-                    <ReelItem key={reel._id + idx} reel={reel} currentUser={currentUser} />
+                    <ReelItem 
+                        key={reel._id + idx} 
+                        reel={reel} 
+                        currentUser={currentUser} 
+                        onVideoEnd={() => handleVideoEnd(idx)}
+                        isAutoAdvance={isAutoAdvance}
+                    />
                 ))}
                 
                 {loading && <div className="loading-reel">Loading...</div>}

@@ -93,7 +93,7 @@ const Search = () => {
     );
 
     return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '30px 20px' }}>
+        <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '30px 20px' }}>
             <div style={{ 
                 background: '#f1f5f9', borderRadius: '15px', padding: '15px 20px', 
                 display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px',

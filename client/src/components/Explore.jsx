@@ -68,7 +68,7 @@ const Explore = () => {
     );
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+        <div style={{ maxWidth: '1250px', width: '100%', margin: '0 auto', padding: '20px' }}>
             <header style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '20px' }}>
                 <div 
                     onClick={() => setActiveTab('explore')}

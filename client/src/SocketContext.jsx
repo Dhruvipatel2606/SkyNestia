@@ -12,7 +12,7 @@ export const SocketProvider = ({ children, userId }) => {
         if (!userId) return;
 
         // Ensure we connect to the correct backend URL
-        const socketUrl = "http://localhost:5001"; 
+        const socketUrl = "http://localhost:5002"; 
         const newSocket = io(socketUrl);
 
         newSocket.emit("new-user-add", userId);

@@ -395,7 +395,7 @@ body::before {
 /* Feed Container */
 .feed-container {
   width: 100%;
-  max-width: 680px;
+  max-width: 850px;
   margin: 0 auto;
 }
 
@@ -533,7 +533,7 @@ body::before {
 
 /* Create Post */
 .create-post-container .card {
-  max-width: 680px;
+  max-width: 850px;
 }
 
 .create-post-header {

@@ -7,6 +7,7 @@ import { FiGrid, FiUser, FiEdit, FiCalendar, FiPlus, FiVideo } from "react-icons
 import "./Profile.css";
 import HighlightViewer from "./HighlightViewer";
 import { BASE_URL } from "../api";
+import { generateKeyPair, exportKey } from "../utils/Encryption";
 
 const Profile = () => {
   const { id } = useParams();
@@ -300,6 +301,28 @@ const Profile = () => {
         alert('Report submitted.');
     } catch (err) {
         alert('Failed to submit report');
+    }
+  };
+
+  const handleResetKeys = async () => {
+    if (window.confirm("WARNING: This will generate new encryption keys. You will be able to send/receive NEW messages, but all OLD messages in all chats will become unreadable. Proceed?")) {
+      try {
+        const keyPair = await generateKeyPair();
+        const pubJwk = await exportKey(keyPair.publicKey);
+        const privJwk = await exportKey(keyPair.privateKey);
+
+        const keysToStore = { publicKey: JSON.parse(pubJwk), privateKey: JSON.parse(privJwk) };
+        localStorage.setItem('e2ee_keys', JSON.stringify(keysToStore));
+
+        // Update public key on server
+        await API.put(`/user/update/${currentUserId}`, { publicKey: pubJwk });
+        
+        alert("Encryption keys reset successfully. Future messages will work correctly. Old messages will remain unreadable.");
+        window.location.reload(); 
+      } catch (err) {
+        console.error("Key reset failed", err);
+        alert("Failed to reset keys");
+      }
     }
   };
 
@@ -684,6 +707,9 @@ const Profile = () => {
                 </div>
 
                 <div className="danger-zone">
+                  <button type="button" className="action-btn" style={{ marginBottom: '10px', width: '100%', borderColor: '#f59e0b', color: '#f59e0b' }} onClick={handleResetKeys}>
+                    Reset Encryption Keys (Fix Chat Errors)
+                  </button>
                   <button type="button" className="danger-btn" onClick={handleDeleteAccount}>Delete Account</button>
                 </div>
               </form>

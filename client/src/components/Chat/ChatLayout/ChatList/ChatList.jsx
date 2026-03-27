@@ -7,6 +7,8 @@ import { createChat } from "../../../../api/ChatRequests"; // Adjust import path
 export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUser, setChats }) {
     const [showModal, setShowModal] = useState(false);
     const [following, setFollowing] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -25,6 +27,24 @@ export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUs
             fetchFollowing();
         }
     }, [showModal, currentUser]);
+
+    const handleSearch = async (e) => {
+        const query = e.target.value;
+        setSearchTerm(query);
+        if (query.length > 1) {
+            setLoading(true);
+            try {
+                const res = await API.get(`/user/search?q=${query}`);
+                setSearchResults(res.data);
+            } catch (error) {
+                console.error("Search error", error);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setSearchResults([]);
+        }
+    };
 
     const handleStartChat = async (userId) => {
         try {
@@ -85,16 +105,27 @@ export default function ChatList({ chats, setCurrentChat, onlineUsers, currentUs
                             <button className="close-btn" onClick={() => setShowModal(false)}><FiX /></button>
                         </div>
                         <div className="modal-body">
-                            {loading ? <p>Loading people...</p> : (
+                            <div className="search-box-modal" style={{ marginBottom: '15px' }}>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search people..." 
+                                    className="chat-input"
+                                    value={searchTerm}
+                                    onChange={handleSearch}
+                                    style={{ width: '100%', boxSizing: 'border-box' }}
+                                />
+                            </div>
+                            {loading ? <p>Loading...</p> : (
                                 <div className="following-list">
-                                    {following.map(user => (
+                                    {(searchResults.length > 0 ? searchResults : following).map(user => (
                                         <div key={user._id} onClick={() => handleStartChat(user._id)} className="following-item">
                                             <img src={getProfileImg(user.profilePicture)}
                                                 alt="" />
                                             <span>{user.username || user.firstname}</span>
                                         </div>
                                     ))}
-                                    {following.length === 0 && <p className="muted">You are not following anyone yet.</p>}
+                                    {following.length === 0 && searchResults.length === 0 && !searchTerm && <p className="muted">Start searching for people to message.</p>}
+                                    {searchTerm && searchResults.length === 0 && !loading && <p className="muted">No users found.</p>}
                                 </div>
                             )}
                         </div>
