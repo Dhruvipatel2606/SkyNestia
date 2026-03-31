@@ -1,0 +1,156 @@
+.login-split-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    background: #ffffff; /* White base */
+    overflow: hidden;
+    color: #475569;
+    font-family: 'Inter', sans-serif;
+}
+
+.hero-left {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    padding: 80px;
+    background: #0f172a; /* Solid Deep Navy */
+    color: #fff;
+}
+
+.hero-left .brand-logo-top {
+    position: absolute;
+    top: 50px;
+    left: 80px;
+    animation: fadeInUp 0.8s ease backwards;
+}
+
+.hero-headline {
+    font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+    font-weight: 900;
+    max-width: 650px;
+    line-height: 1.05;
+    margin-bottom: 40px;
+    color: #f8fafc;
+    animation: fadeInUp 0.8s ease 0.2s backwards;
+}
+
+.story-stack-visual {
+    position: relative;
+    height: 420px;
+    width: 100%;
+    margin-top: 50px;
+    animation: fadeInUp 1s ease 0.4s backwards;
+}
+
+.story-card-mock {
+    position: absolute;
+    width: 220px;
+    height: 350px;
+    border-radius: 28px;
+    background: #1e293b;
+    border: 2px solid rgba(255,255,255,0.15);
+    overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+}
+
+.story-card-mock:nth-child(1) { transform: rotate(-8deg) translateX(0); z-index: 1; }
+.story-card-mock:nth-child(2) { transform: rotate(0deg) translateX(140px) translateY(-30px); z-index: 2; border-color: #3b82f6; }
+.story-card-mock:nth-child(3) { transform: rotate(8deg) translateX(280px) translateY(10px); z-index: 1; }
+
+.login-right {
+    flex: 0.8;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+    position: relative;
+}
+
+.account-switcher-view {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+.recent-user-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid #1e40af;
+    margin: 0 auto 25px;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+
+.handle-display {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 35px;
+    color: #0f172a;
+}
+
+.btn-auth-full {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    font-weight: 750;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-auth-primary {
+    background: #1e40af; /* Deep Royal Blue */
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 15px rgba(30, 64, 175, 0.2);
+}
+
+.btn-auth-primary:hover { 
+    background: #1e3a8a; 
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(30, 64, 175, 0.3);
+}
+
+.btn-auth-secondary {
+    background: #ffffff;
+    color: #1e40af;
+    border: 2.5px solid #e2e8f0;
+}
+
+.btn-auth-secondary:hover { 
+    border-color: #1e40af;
+    background: #f8fafc;
+}
+
+.auth-card-modern h2 {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.form-input {
+    background: #f8fafc !important;
+    border: 1.5px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 500;
+}
+
+.form-input:focus {
+    border-color: #1e40af !important;
+    background: #ffffff !important;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1100px) {
+    .login-split-container { flex-direction: column; }
+    .hero-left { display: none; }
+    .login-right { flex: 1; padding: 40px 20px; }
+}

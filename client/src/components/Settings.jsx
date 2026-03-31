@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import API from '../api';
 import './Settings.css';
 import ScreenTimeSettings from './screenTime/ScreenTimeSettings';
+import Logo from './Logo';
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -10,11 +11,11 @@ export default function Settings() {
     const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
     
     const [activeTab, setActiveTab] = useState('account'); // 'account', 'security', 'privacy', 'danger'
+    const [userProfile, setUserProfile] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
-    // --- Account Management State ---
     const [accountData, setAccountData] = useState({
         username: currentUser?.username || '',
         firstname: currentUser?.firstname || '',
@@ -38,7 +39,6 @@ export default function Settings() {
     const [coverFile, setCoverFile] = useState(null);
     const [previewCover, setPreviewCover] = useState(null);
 
-    // --- Security State ---
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -76,6 +76,17 @@ export default function Settings() {
     };
 
     useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                const res = await API.get(`/user/${currentUser._id}`);
+                const userData = res.data.profile || res.data.user || res.data;
+                setUserProfile(userData);
+            } catch (err) {
+                console.error("Profile fetch fail", err);
+            }
+        };
+        fetchUserProfile();
+
         if (activeTab === 'security') {
             fetchSessions();
         }
@@ -111,7 +122,7 @@ export default function Settings() {
             };
             fetchLegal();
         }
-    }, [activeTab, faqs.length, legalData.privacy]);
+    }, [activeTab, currentUser._id, faqs.length, legalData.privacy]);
 
     const fetchSessions = async () => {
         try {
@@ -416,132 +427,110 @@ export default function Settings() {
     };
 
     return (
-        <div className="settings-container">
-            <h2>Settings</h2>
-            
-            <div className="settings-tabs" style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
-                <div 
-                    className={`settings-tab ${activeTab === 'account' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('account'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'account' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'account' ? 'bold' : 'normal' }}
-                >
-                    Account Management
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'security' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('security'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'security' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'security' ? 'bold' : 'normal' }}
-                >
-                    Security
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'privacy' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('privacy'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'privacy' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'privacy' ? 'bold' : 'normal' }}
-                >
-                    Privacy
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'screentime' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('screentime'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'screentime' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'screentime' ? 'bold' : 'normal' }}
-                >
-                    Manage Screen Time
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'danger' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('danger'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'danger' ? '2px solid #dc3545' : 'none', fontWeight: activeTab === 'danger' ? 'bold' : 'normal', color: '#dc3545' }}
-                >
-                    Danger Zone
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'support' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('support'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'support' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'support' ? 'bold' : 'normal' }}
-                >
-                    Help & Support
-                </div>
-                <div 
-                    className={`settings-tab ${activeTab === 'legal' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('legal'); clearMessages(); }}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'legal' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'legal' ? 'bold' : 'normal' }}
-                >
-                    Legal & Policies
-                </div>
+        <div className="settings-container-full">
+            <div className="settings-main-header">
+                <h1 className="settings-title">Settings</h1>
+                <p className="settings-subtitle">Manage your cloud identity and secure your presence.</p>
             </div>
 
-            {message && <div style={{ padding: '10px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '5px', marginBottom: '15px' }}>{message}</div>}
-            {error && <div style={{ padding: '10px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '5px', marginBottom: '15px' }}>{error}</div>}
+            <div className="settings-tabs">
+                {[
+                    { id: 'account', label: 'Identity' },
+                    { id: 'security', label: 'Security' },
+                    { id: 'privacy', label: 'Privacy' },
+                    { id: 'screentime', label: 'Insights' },
+                    { id: 'support', label: 'Support' },
+                    { id: 'legal', label: 'Legal' },
+                    { id: 'danger', label: 'Danger', danger: true }
+                ].map((tab) => (
+                    <div
+                        key={tab.id}
+                        className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+                        onClick={() => { setActiveTab(tab.id); clearMessages(); }}
+                        style={tab.danger && activeTab !== tab.id ? { color: '#ef4444' } : {}}
+                    >
+                        {tab.label}
+                    </div>
+                ))}
+            </div>
 
-            {/* TAB: ACCOUNT MANAGEMENT */}
-            {activeTab === 'account' && (
-                <div className="settings-section">
-                    <h3>Basic Account Information</h3>
-                    <form onSubmit={handleUpdateAccount}>
-                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                            <div className="form-group" style={{ textAlign: 'center', flex: 1 }}>
-                                <label>Profile Photo</label>
-                                <div className="edit-avatar-preview" style={{ width: '100px', height: '100px', margin: '10px auto', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#ddd' }}>
-                                    <img src={previewImage || getProfileImg(currentUser.profilePicture)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div className="settings-content-flow" key={activeTab}>
+                {message && <div style={{ padding: '15px', backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '12px', marginBottom: '20px', textAlign: 'center' }}>{message}</div>}
+                {error && <div style={{ padding: '15px', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '12px', marginBottom: '20px', textAlign: 'center' }}>{error}</div>}
+
+                {/* ACCOUNT TAB */}
+                {activeTab === 'account' && (
+                    <div className="settings-section">
+                        <h3>Identity Configuration</h3>
+                        <form onSubmit={handleUpdateAccount}>
+                            <div className="settings-grid-row" style={{ marginBottom: '30px' }}>
+                                <div className="privacy-card" style={{ cursor: 'default' }}>
+                                    <div className="privacy-card-info">
+                                        <h4>Public Face</h4>
+                                        <p>Manage your handle and how you appear to others in the Nest.</p>
+                                        <div style={{ marginTop: '15px' }}>
+                                            <input type="text" name="username" value={accountData.username} onChange={handleAccountChange} className="form-input" style={{ width: '100%', marginBottom: '10px' }} placeholder="Handle (@username)" />
+                                            <div style={{ display: 'flex', gap: '10px' }}>
+                                                <input type="text" name="firstname" value={accountData.firstname} onChange={handleAccountChange} className="form-input" style={{ flex: 1 }} placeholder="First Name" />
+                                                <input type="text" name="lastname" value={accountData.lastname} onChange={handleAccountChange} className="form-input" style={{ flex: 1 }} placeholder="Last Name" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <label className="change-photo-btn" style={{ cursor: 'pointer', color: 'var(--secondary-color)', fontSize: '0.9rem' }}>
-                                    Change Photo
-                                    <input type="file" onChange={handleImageChange} style={{ display: 'none' }} />
-                                </label>
-                            </div>
-
-                            <div className="form-group" style={{ textAlign: 'center', flex: 2 }}>
-                                <label>Cover Photo</label>
-                                <div className="edit-avatar-preview" style={{ width: '100%', height: '100px', margin: '10px auto', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ddd' }}>
-                                    {previewCover || currentUser.coverPicture ? (
-                                        <img src={previewCover || getProfileImg(currentUser.coverPicture)} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : null}
+                                <div className="privacy-card" style={{ cursor: 'default' }}>
+                                    <div className="privacy-card-info">
+                                        <h4>Your Story</h4>
+                                        <p>Share a bit about yourself with the SkyNestia community.</p>
+                                        <textarea 
+                                            name="bio" 
+                                            value={accountData.bio} 
+                                            onChange={handleAccountChange} 
+                                            className="form-input" 
+                                            rows={5} 
+                                            style={{ width: '100%', marginTop: '15px' }} 
+                                            placeholder="Write something inspiring..." 
+                                        />
+                                    </div>
                                 </div>
-                                <label className="change-photo-btn" style={{ cursor: 'pointer', color: 'var(--secondary-color)', fontSize: '0.9rem' }}>
-                                    Change Cover
-                                    <input type="file" onChange={handleCoverChange} style={{ display: 'none' }} />
-                                </label>
                             </div>
-                        </div>
 
-                        <div className="form-group" style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Username</label>
-                            <input name="username" value={accountData.username} onChange={handleAccountChange} className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)' }} required />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                            <div className="form-group" style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '5px' }}>First Name</label>
-                                <input name="firstname" value={accountData.firstname} onChange={handleAccountChange} className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)' }} />
+                            <div className="settings-grid-row" style={{ marginBottom: '40px' }}>
+                                <div className="privacy-card" style={{ cursor: 'default' }}>
+                                    <div className="privacy-card-info">
+                                        <h4>Anchored Details</h4>
+                                        <p>Primary contact methods for system notifications.</p>
+                                        <div style={{ marginTop: '15px' }}>
+                                            <input type="email" value={accountData.email} className="form-input" style={{ width: '100%', marginBottom: '10px', opacity: 0.6, cursor: 'not-allowed' }} disabled />
+                                            <input type="tel" name="phone" value={accountData.phone} onChange={handleAccountChange} className="form-input" style={{ width: '100%' }} placeholder="Mobile (+123...)" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="privacy-card" style={{ cursor: 'default' }}>
+                                    <div className="privacy-card-info">
+                                        <h4>Visual Assets</h4>
+                                        <p>High-resolution imagery for your cloud presence.</p>
+                                        <div style={{ marginTop: '15px', display: 'flex', gap: '12px', flexDirection: 'column' }}>
+                                            <label className="btn-secondary-premium" style={{ width: '100%', cursor: 'pointer', textAlign: 'center', background: '#f0f9ff', color: 'var(--secondary)', border: '1px solid var(--accent)' }}>
+                                                ✨ Update Avatar
+                                                <input type="file" onChange={handleImageChange} style={{ display: 'none' }} />
+                                            </label>
+                                            <label className="btn-secondary-premium" style={{ width: '100%', cursor: 'pointer', textAlign: 'center', background: '#f0f9ff', color: 'var(--secondary)', border: '1px solid var(--accent)' }}>
+                                                🖼️ Update Banner
+                                                <input type="file" onChange={handleCoverChange} style={{ display: 'none' }} />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="form-group" style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '5px' }}>Last Name</label>
-                                <input name="lastname" value={accountData.lastname} onChange={handleAccountChange} className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)' }} />
+
+                            <div className="privacy-tab-footer" style={{ padding: '40px', background: 'transparent' }}>
+                                <button type="submit" disabled={isLoading} className="btn-premium" style={{ padding: '18px 80px', fontSize: '1.1rem' }}>
+                                    {isLoading ? '🚀 Anchoring Changes...' : 'Save Sky Identity'}
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Email Address <span style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>(Cannot be changed)</span></label>
-                            <input type="email" name="email" value={accountData.email} className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-secondary)' }} disabled />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Phone Number <span style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>(Optional)</span></label>
-                            <input type="tel" name="phone" value={accountData.phone} onChange={handleAccountChange} placeholder="+1234567890" className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)' }} />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Bio <span style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>(Optional)</span></label>
-                            <textarea name="bio" value={accountData.bio} onChange={handleAccountChange} rows={3} className="form-input" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)' }} />
-                        </div>
-
-                        <button type="submit" disabled={isLoading} className="btn-premium" style={{ width: '100%' }}>
-                            {isLoading ? 'Saving...' : 'Save Profile Changes'}
-                        </button>
-                    </form>
-                </div>
-            )}
+                        </form>
+                    </div>
+                )}
 
             {/* TAB: PRIVACY */}
             {activeTab === 'privacy' && (
@@ -1135,5 +1124,6 @@ export default function Settings() {
                 </div>
             )}
         </div>
-    );
+    </div>
+  );
 }

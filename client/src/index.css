@@ -1,45 +1,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
 
-/* Global Variables & Theme */
-
 :root {
-  /* Light Theme (Default) */
-  --primary: #0A192F;
-  --primary-hover: #112240;
-  --primary-light: #E0F2FE;
-  --secondary: #0EA5E9;
-  --accent: #38BDF8;
+  /* Light Theme (Logo Inspired - Dark Blue) */
+  --primary: #0f172a; 
+  --primary-hover: #1e3a8a;
+  --primary-light: #f1f5f9;
+  --secondary: #1e40af; 
+  --accent: #3b82f6; 
+  --brand-gradient: linear-gradient(135deg, #1e40af, #0f172a);
+  --brand-gradient-hover: linear-gradient(135deg, #2563eb, #1e3a8a);
 
-  --text-main: #0A192F;
-  --text-muted: #475569;
-  --background-start: #F8FAFC;
-  --background-end: #E0F2FE;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --background-start: #f8fafc;
+  --background-end: #e2e8f0;
 
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(15, 23, 42, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
 
   --card-bg: #ffffff;
-  --sidebar-bg: rgba(255, 255, 255, 0.85);
-  --border-color: #f3f4f6;
+  --sidebar-bg: rgba(255, 255, 255, 0.9);
+  --border-color: #e2e8f0;
 
   --transition-speed: 0.4s;
   --transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme='dark'] {
-  --primary: #60A5FA;
-  --primary-hover: #93C5FD;
-  --primary-light: #1E293B;
-  --secondary: #38BDF8;
-  --accent: #0284C7;
+  --primary: #38bdf8;
+  --primary-hover: #7dd3fc;
+  --primary-light: #0f172a;
+  --secondary: #0ea5e9;
+  --accent: #0c4a6e;
+  --brand-gradient: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  --brand-gradient-hover: linear-gradient(135deg, #38bdf8, #7dd3fc);
 
-  --text-main: #F1F5F9;
-  --text-muted: #94A3B8;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
   --background-start: #020617;
-  --background-end: #0B1E3B;
+  --background-end: #0f172a;
 
-  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-bg: rgba(15, 23, 42, 0.7);
   --glass-border: rgba(255, 255, 255, 0.05);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 
@@ -256,8 +258,9 @@ body::before {
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.2);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.15);
+  border-color: var(--accent);
 }
 
 .auth-card {
@@ -332,7 +335,7 @@ body::before {
 
 .btn.primary,
 .btn-primary {
-  background: linear-gradient(135deg, #0EA5E9, #2563EB);
+  background: var(--brand-gradient);
   color: white;
   box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25);
   border: none;
@@ -341,8 +344,9 @@ body::before {
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+  background: var(--brand-gradient-hover);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.4);
   filter: brightness(1.1);
 }
 

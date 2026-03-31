@@ -31,6 +31,7 @@ import ScreenTimeProvider from './providers/ScreenTimeProvider'
 import ScreenTimeWarningBanner from './components/screenTime/ScreenTimeWarningBanner'
 import ScreenTimeLockScreen from './components/screenTime/ScreenTimeLockScreen'
 import useScreenTime from './hooks/useScreenTime'
+import Logo from './components/Logo'
 
 /* Screen Time Guard — renders lock screen or warning banners */
 function ScreenTimeGuard({ children }) {
@@ -52,11 +53,6 @@ function AppLayout({ user, setUser, sidebarOpen, setSidebarOpen, children }) {
   return (
     <>
       {user && <Sidebar isOpen={sidebarOpen} toggle={() => setSidebarOpen(!sidebarOpen)} />}
-      {!user && (
-        <nav className="nav" style={{ justifyContent: 'center', position: 'absolute', width: '100%', background: 'transparent', border: 'none', top: 0 }}>
-          <Link to="/" className="logo">SkyNestia</Link>
-        </nav>
-      )}
       <main className="main" style={{
         marginLeft: !user ? 0 : (sidebarOpen ? '240px' : '70px'),
         width: !user ? '100%' : (sidebarOpen ? 'calc(100% - 240px)' : 'calc(100% - 70px)'),

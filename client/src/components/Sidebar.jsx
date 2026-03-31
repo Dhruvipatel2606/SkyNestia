@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiSearch, FiCompass, FiMessageSquare, FiHeart, FiPlusSquare, FiUser, FiMenu, FiLogOut, FiSettings, FiActivity, FiBookmark, FiMoon, FiAlertCircle, FiChevronLeft } from 'react-icons/fi';
 import './Sidebar.css';
 import Notifications from './Notifications';
+import Logo from './Logo';
 import { BASE_URL } from '../api';
 
 const Sidebar = ({ isOpen, toggle }) => {
@@ -50,10 +51,9 @@ const Sidebar = ({ isOpen, toggle }) => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // When showMore is toggled off, we might want to reset the submenu
     useEffect(() => {
         if (!showMore) {
-            setTimeout(() => setShowAppearanceMenu(false), 200); // Simple delay
+            setTimeout(() => setShowAppearanceMenu(false), 200);
         }
     }, [showMore]);
 
@@ -62,9 +62,14 @@ const Sidebar = ({ isOpen, toggle }) => {
 
     return (
         <div className={`sidebar ${!isOpen ? 'collapsed' : ''}`}>
-            {/* Same Logo & Nav as before */}
-            <div className="sidebar-logo" onClick={toggle} style={{ cursor: 'pointer' }} title={isOpen ? "Collapse" : "Expand"}>
-                {isOpen ? <Link to="#">SkyNestia</Link> : <span style={{ fontFamily: "'Great Vibes', cursive", fontSize: '1.8rem', color: 'white', background: 'linear-gradient(135deg, #fff 0%, var(--secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SN</span>}
+            <div className="sidebar-logo-container" onClick={toggle} style={{ 
+                padding: isOpen ? '25px 20px' : '20px 0', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer' 
+            }}>
+                <Logo size={isOpen ? 38 : 32} showText={isOpen} layout="horizontal" />
             </div>
 
             <nav className="sidebar-nav">
