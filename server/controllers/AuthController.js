@@ -5,6 +5,7 @@ import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { OAuth2Client } from 'google-auth-library';
 import sendEmail from '../utils/sendEmail.js';
+import sendSMS from '../utils/sendSMS.js';
 import SessionModel from '../models/sessionModel.js';
 import crypto from 'crypto';
 
@@ -108,25 +109,71 @@ export const loginUser = async (req, res) => {
         // 2FA Check
         if (user.twoFactorEnabled) {
             if (!code) {
+                let message = 'Verification required';
+                const method = user.twoFactorMethod || 'totp';
+                
+                // If Email or SMS, trigger a fresh OTP automatically
+                if (method === 'email' || method === 'sms') {
+                    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+                    user.otp = {
+                        code: otpCode,
+                        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+                        purpose: '2fa'
+                    };
+                    await user.save();
+                    
+                    if (method === 'email') {
+                        await sendEmail({
+                            to: user.email,
+                            subject: 'SkyNestia 2FA Login Code',
+                            text: `Your login code is: ${otpCode}. Expiring in 10 minutes.`
+                        });
+                        message = `A verification code has been sent to ${user.email.replace(/(.{2}).*(@.*)/, "$1***$2")}`;
+                    } else if (method === 'sms') {
+                        await sendSMS({
+                            to: user.phone,
+                            message: `Your SkyNestia login code is: ${otpCode}`
+                        });
+                        message = `A verification code has been sent to your phone ending in ${user.phone.slice(-4)}`;
+                    }
+                } else {
+                    message = 'Enter code from your authenticator app';
+                }
+
                 return res.status(200).json({
-                    message: '2FA required',
+                    message,
                     requires2FA: true,
-                    tempToken: jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' })
+                    method,
+                    tempToken: jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '10m' })
                 });
             }
 
+            let verified = false;
+            // Check if it's a backup code (usually > 6 chars)
             if (code.length > 6) {
                 const backupCode = user.backupCodes.find(bc => bc.code === code && !bc.used);
                 if (!backupCode) return res.status(400).json({ message: 'Invalid or used backup code' });
                 backupCode.used = true;
-            } else {
-                const verified = speakeasy.totp.verify({
+                verified = true;
+            } else if (user.twoFactorMethod === 'totp') {
+                verified = speakeasy.totp.verify({
                     secret: user.twoFactorSecret,
                     encoding: 'base32',
                     token: code
                 });
-                if (!verified) return res.status(400).json({ message: 'Invalid 2FA code' });
+            } else {
+                // Numeric OTP (Email/SMS)
+                if (user.otp && user.otp.code === code && user.otp.purpose === '2fa') {
+                    if (new Date() < user.otp.expiresAt) {
+                        verified = true;
+                        user.otp = undefined; // Clear after use
+                    } else {
+                        return res.status(400).json({ message: 'Code expired' });
+                    }
+                }
             }
+
+            if (!verified) return res.status(400).json({ message: 'Invalid 2FA code' });
         }
 
         const accessToken = generateAccessToken(user);
@@ -271,11 +318,22 @@ export const googleAuth = async (req, res) => {
 // Setup 2FA
 export const setup2FA = async (req, res) => {
     try {
-        const secret = speakeasy.generateSecret({ length: 20, name: `SkyNestia:${req.userId}` });
-        const user = await UserModel.findById(req.userId);
+        const { method } = req.body; // 'totp', 'email', 'sms'
+        if (!['totp', 'email', 'sms'].includes(method)) {
+            return res.status(400).json({ message: 'Invalid 2FA method' });
+        }
 
-        user.twoFactorSecret = secret.base32;
-        
+        const user = await UserModel.findById(req.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // If choosing SMS, ensure user has a phone number
+        if (method === 'sms' && !user.phone) {
+            return res.status(400).json({ message: 'Please provide a phone number in profile first' });
+        }
+
+        user.twoFactorMethod = method;
+
+        // Initialize Backup Codes if missing
         if (!user.backupCodes || user.backupCodes.length === 0) {
             const codes = [];
             for (let i = 0; i < 8; i++) {
@@ -283,41 +341,128 @@ export const setup2FA = async (req, res) => {
             }
             user.backupCodes = codes;
         }
-        
-        await user.save();
-        const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-        res.json({ 
-            secret: secret.base32, 
-            qrCodeUrl, 
+        let responseData = { 
+            method,
             backupCodes: user.backupCodes.filter(c => !c.used).map(c => c.code) 
-        });
+        };
+
+        if (method === 'totp') {
+            const secret = speakeasy.generateSecret({ length: 20, name: `SkyNestia:${user.username}` });
+            user.twoFactorSecret = secret.base32;
+            responseData.secret = secret.base32;
+            responseData.qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+        } else {
+            // Generate Numeric OTP for Email/SMS verification
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            user.otp = {
+                code: otpCode,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 mins
+                purpose: '2fa'
+            };
+
+            if (method === 'email') {
+                await sendEmail({
+                    to: user.email,
+                    subject: 'SkyNestia 2FA Configuration Code',
+                    text: `Your code to enable email 2FA is: ${otpCode}`
+                });
+            } else if (method === 'sms') {
+                await sendSMS({
+                    to: user.phone,
+                    message: `Your SkyNestia 2FA login code is: ${otpCode}`
+                });
+            }
+        }
+
+        await user.save();
+        res.json(responseData);
     } catch (error) {
-        res.status(500).json({ message: 'Error setting up 2FA' });
+        console.error("2FA Setup Error:", error);
+        res.status(500).json({ message: 'Error setting up 2FA', error: error.message });
     }
 };
 
 // Verify 2FA Setup
 export const verify2FA = async (req, res) => {
     try {
-        const { token } = req.body;
-        const user = await UserModel.findById(req.userId).select('+twoFactorSecret');
+        const { token } = req.body; // 6-digit numeric or totp token
+        const user = await UserModel.findById(req.userId).select('+twoFactorSecret +otp');
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
-        const verified = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: 'base32',
-            token
-        });
+        let verified = false;
+
+        if (user.twoFactorMethod === 'totp') {
+            verified = speakeasy.totp.verify({
+                secret: user.twoFactorSecret,
+                encoding: 'base32',
+                token
+            });
+        } else {
+            // Check numeric OTP for Email/SMS
+            if (user.otp && user.otp.code === token && user.otp.purpose === '2fa') {
+                if (new Date() < user.otp.expiresAt) {
+                    verified = true;
+                    // Important: Clear OTP after successful setup verification
+                    user.otp = undefined;
+                } else {
+                    return res.status(400).json({ message: 'Code expired' });
+                }
+            }
+        }
 
         if (verified) {
             user.twoFactorEnabled = true;
             await user.save();
             res.json({ message: '2FA Enabled Successfully' });
         } else {
-            res.status(400).json({ message: 'Invalid Token' });
+            res.status(400).json({ message: 'Invalid Verification Code' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Error verifying 2FA' });
+        console.error("2FA Verification Error:", error);
+        res.status(500).json({ message: 'Error verifying 2FA', error: error.message });
+    }
+};
+
+// Resend 2FA OTP
+export const resend2FAOTP = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (!user.twoFactorEnabled && !user.otp?.code) {
+           return res.status(400).json({ message: 'No 2FA setup in progress' });
+        }
+
+        const method = user.twoFactorMethod;
+        if (method === 'totp') {
+            return res.status(400).json({ message: 'Cannot resend for Authenticator App method' });
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.otp = {
+            code: otpCode,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+            purpose: '2fa'
+        };
+        await user.save();
+
+        if (method === 'email') {
+            await sendEmail({
+                to: user.email,
+                subject: 'SkyNestia 2FA Code (Resend)',
+                text: `Your new 2FA code is: ${otpCode}`
+            });
+        } else if (method === 'sms') {
+            await sendSMS({
+                to: user.phone,
+                message: `Your new SkyNestia 2FA code is: ${otpCode}`
+            });
+        }
+
+        res.json({ message: 'Code resent successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error resending code', error: error.message });
     }
 };
 

@@ -8,7 +8,10 @@ export default function Login({ setUser }) {
     const [twoFactorCode, setTwoFactorCode] = useState('')
     const [requires2FA, setRequires2FA] = useState(false)
     const [tempToken, setTempToken] = useState('')
+    const [twoFactorMethod, setTwoFactorMethod] = useState('totp')
+    const [twoFactorMessage, setTwoFactorMessage] = useState('')
     const [error, setError] = useState('')
+    const [infoMessage, setInfoMessage] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
 
@@ -29,6 +32,8 @@ export default function Login({ setUser }) {
             if (data.requires2FA) {
                 setRequires2FA(true);
                 setTempToken(data.tempToken);
+                setTwoFactorMethod(data.method || 'totp');
+                setTwoFactorMessage(data.message || 'Enter your verification code');
                 setIsLoading(false);
                 return;
             }
@@ -46,6 +51,22 @@ export default function Login({ setUser }) {
             navigate('/feed');
         } catch (err) {
             setError(err.response?.data?.message || 'Network error. Please try again.');
+            setIsLoading(false);
+        }
+    }
+
+    const handleResendOTP = async () => {
+        setError('');
+        setInfoMessage('');
+        setIsLoading(true);
+        try {
+            await API.post('/auth/2fa/resend', {}, {
+                headers: { Authorization: `Bearer ${tempToken}` }
+            });
+            setInfoMessage("A new verification code has been sent.");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to resend code.");
+        } finally {
             setIsLoading(false);
         }
     }
@@ -85,8 +106,8 @@ export default function Login({ setUser }) {
                 ) : (
                     <label>
                         Two-Factor Authentication
-                        <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px'}}>
-                            Enter the 6-digit code from your app or a backup code.
+                        <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px', lineHeight: '1.4'}}>
+                            {twoFactorMessage}
                         </p>
                         <input
                             type="text"
@@ -94,14 +115,25 @@ export default function Login({ setUser }) {
                             onChange={(e) => setTwoFactorCode(e.target.value)}
                             required
                             placeholder="000000"
-                            style={{textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', border: '2px solid var(--secondary-color)', borderRadius: '10px'}}
+                            style={{textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', border: '2px solid var(--secondary-color)', borderRadius: '10px', width: '100%'}}
                             disabled={isLoading}
                             autoFocus
                         />
+                        {(twoFactorMethod === 'email' || twoFactorMethod === 'sms') && (
+                            <button 
+                                type="button"
+                                onClick={handleResendOTP} 
+                                disabled={isLoading} 
+                                style={{background: 'none', border: 'none', color: 'var(--secondary-color)', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px', textAlign: 'left', width: 'fit-content'}}
+                            >
+                                Didn't receive code? Resend
+                            </button>
+                        )}
                     </label>
                 )}
 
-                {error && <div className="error">{error}</div>}
+                {error && <div className="error" style={{marginTop: '10px'}}>{error}</div>}
+                {infoMessage && <div className="success" style={{marginTop: '10px', color: '#28a745', fontSize: '0.9rem', fontWeight: 'bold'}}>{infoMessage}</div>}
 
                 <button className="btn primary" type="submit" disabled={isLoading} style={{marginTop: '10px'}}>
                     {isLoading ? (requires2FA ? 'Verifying...' : 'Signing in...') : (requires2FA ? 'Verify & Sign In' : 'Sign In')}

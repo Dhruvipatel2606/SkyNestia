@@ -27,6 +27,25 @@ import useAppUsageTracker from './utils/useAppUsageTracker'
 import Reels from './pages/Reels/Reels'
 import Search from './components/Search'
 import Explore from './components/Explore'
+import ScreenTimeProvider from './providers/ScreenTimeProvider'
+import ScreenTimeWarningBanner from './components/screenTime/ScreenTimeWarningBanner'
+import ScreenTimeLockScreen from './components/screenTime/ScreenTimeLockScreen'
+import useScreenTime from './hooks/useScreenTime'
+
+/* Screen Time Guard — renders lock screen or warning banners */
+function ScreenTimeGuard({ children }) {
+  const { isBlocked, warningLevel, isEnabled } = useScreenTime();
+
+  return (
+    <>
+      {isBlocked && <ScreenTimeLockScreen />}
+      {isEnabled && !isBlocked && (warningLevel === 'soft' || warningLevel === 'hard') && (
+        <ScreenTimeWarningBanner />
+      )}
+      {children}
+    </>
+  );
+}
 
 /* Wrapper that provides the regular sidebar + main layout */
 function AppLayout({ user, setUser, sidebarOpen, setSidebarOpen, children }) {
@@ -72,46 +91,51 @@ export default function App() {
 
   return (
     <SocketProvider userId={user?._id}>
-      <div className="app" style={isAdminRoute ? { background: 'none' } : {}}>
-        <Routes>
-          {/* ──── Admin Routes (own layout, no regular sidebar) ──── */}
-          <Route path="/admin" element={user ? <AdminLayout /> : <Login setUser={setUser} />}>
-            <Route index element={<AdminOverview />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="posts" element={<AdminPosts />} />
-            <Route path="reports" element={<AdminReports />} />
-            <Route path="verifications" element={<AdminVerifications />} />
-            <Route path="analytics" element={<AdminAnalytics />} />
-          </Route>
+      <ScreenTimeProvider isAuthenticated={!!user}>
+        <div className="app" style={isAdminRoute ? { background: 'none' } : {}}>
+          <ScreenTimeGuard>
+            <Routes>
+              {/* ──── Admin Routes (own layout, no regular sidebar) ──── */}
+              <Route path="/admin" element={user ? <AdminLayout /> : <Login setUser={setUser} />}>
+                <Route index element={<AdminOverview />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="posts" element={<AdminPosts />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="verifications" element={<AdminVerifications />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+              </Route>
 
-          {/* ──── Regular App Routes (with sidebar) ──── */}
-          <Route path="/*" element={
-            <AppLayout user={user} setUser={setUser} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
-              <Routes>
-                <Route path="/" element={<Login setUser={setUser} />} />
-                <Route path="/login" element={<Login setUser={setUser} />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/dashboard" element={user ? <Dashboard /> : <Login setUser={setUser} />} />
-                <Route path="/feed" element={user ? <Feed /> : <Login setUser={setUser} />} />
-                <Route path="/chat" element={user ? <Chat /> : <Login setUser={setUser} />} />
-                <Route path="/create-post" element={user ? <CreatePost /> : <Login setUser={setUser} />} />
-                <Route path="/profile/:id" element={user ? <Profile /> : <Login setUser={setUser} />} />
-                <Route path="/profile" element={user ? <Profile /> : <Login setUser={setUser} />} />
-                <Route path="/followers/:id" element={user ? <Followers /> : <Login setUser={setUser} />} />
-                <Route path="/tag-requests" element={user ? <TagRequests /> : <Login setUser={setUser} />} />
-                <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
-                <Route path="/settings" element={user ? <Settings /> : <Login setUser={setUser} />} />
-                <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
-                <Route path="/reels" element={user ? <Reels /> : <Login setUser={setUser} />} />
-                <Route path="/activity" element={user ? <YourActivity /> : <Login setUser={setUser} />} />
-                <Route path="/search" element={user ? <Search /> : <Login setUser={setUser} />} />
-                <Route path="/explore" element={user ? <Explore /> : <Login setUser={setUser} />} />
-              </Routes>
-            </AppLayout>
-          } />
-        </Routes>
-      </div>
+              {/* ──── Regular App Routes (with sidebar) ──── */}
+              <Route path="/*" element={
+                <AppLayout user={user} setUser={setUser} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
+                  <Routes>
+                    <Route path="/" element={<Login setUser={setUser} />} />
+                    <Route path="/login" element={<Login setUser={setUser} />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/dashboard" element={user ? <Dashboard /> : <Login setUser={setUser} />} />
+                    <Route path="/feed" element={user ? <Feed /> : <Login setUser={setUser} />} />
+                    <Route path="/chat" element={user ? <Chat /> : <Login setUser={setUser} />} />
+                    <Route path="/create-post" element={user ? <CreatePost /> : <Login setUser={setUser} />} />
+                    <Route path="/profile/:id" element={user ? <Profile /> : <Login setUser={setUser} />} />
+                    <Route path="/profile" element={user ? <Profile /> : <Login setUser={setUser} />} />
+                    <Route path="/followers/:id" element={user ? <Followers /> : <Login setUser={setUser} />} />
+                    <Route path="/tag-requests" element={user ? <TagRequests /> : <Login setUser={setUser} />} />
+                    <Route path="/saved" element={user ? <SavedPosts /> : <Login setUser={setUser} />} />
+                    <Route path="/settings" element={user ? <Settings /> : <Login setUser={setUser} />} />
+                    <Route path="/post/:id" element={user ? <PostDetails /> : <Login setUser={setUser} />} />
+                    <Route path="/reels" element={user ? <Reels /> : <Login setUser={setUser} />} />
+                    <Route path="/activity" element={user ? <YourActivity /> : <Login setUser={setUser} />} />
+                    <Route path="/search" element={user ? <Search /> : <Login setUser={setUser} />} />
+                    <Route path="/explore" element={user ? <Explore /> : <Login setUser={setUser} />} />
+                  </Routes>
+                </AppLayout>
+              } />
+            </Routes>
+          </ScreenTimeGuard>
+        </div>
+      </ScreenTimeProvider>
     </SocketProvider>
   )
 }
+

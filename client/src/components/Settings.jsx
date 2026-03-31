@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
 import './Settings.css';
+import ScreenTimeSettings from './screenTime/ScreenTimeSettings';
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -50,7 +51,8 @@ export default function Settings() {
         secret: '',
         token: '',
         backupCodes: [],
-        showSetup: false
+        showSetup: false,
+        setupMethod: 'totp' // 'totp', 'email', 'sms'
     });
 
     const [sessions, setSessions] = useState([]);
@@ -196,20 +198,38 @@ export default function Settings() {
         }
     };
 
-    const handleSetup2FA = async () => {
+    const handleSetup2FA = async (method = 'totp') => {
         clearMessages();
         setIsLoading(true);
         try {
-            const res = await API.post('/auth/2fa/setup');
+            const res = await API.post('/auth/2fa/setup', { method });
             setTwoFactorData({
                 ...twoFactorData,
-                qrCode: res.data.qrCodeUrl,
-                secret: res.data.secret,
+                qrCode: res.data.qrCodeUrl || '',
+                secret: res.data.secret || '',
                 backupCodes: res.data.backupCodes,
-                showSetup: true
+                showSetup: true,
+                setupMethod: method,
+                token: '' // Clear token input
             });
+            if (method !== 'totp') {
+                setMessage(`A verification code has been sent to your ${method === 'email' ? 'email' : 'phone'}.`);
+            }
         } catch (err) {
-            setError("Failed to start 2FA setup.");
+            setError(err.response?.data?.message || "Failed to start 2FA setup.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResendOTP = async () => {
+        clearMessages();
+        setIsLoading(true);
+        try {
+            await API.post('/auth/2fa/resend');
+            setMessage("A new verification code has been sent.");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to resend code.");
         } finally {
             setIsLoading(false);
         }
@@ -422,6 +442,13 @@ export default function Settings() {
                     Privacy
                 </div>
                 <div 
+                    className={`settings-tab ${activeTab === 'screentime' ? 'active' : ''}`}
+                    onClick={() => { setActiveTab('screentime'); clearMessages(); }}
+                    style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'screentime' ? '2px solid var(--secondary-color)' : 'none', fontWeight: activeTab === 'screentime' ? 'bold' : 'normal' }}
+                >
+                    Manage Screen Time
+                </div>
+                <div 
                     className={`settings-tab ${activeTab === 'danger' ? 'active' : ''}`}
                     onClick={() => { setActiveTab('danger'); clearMessages(); }}
                     style={{ padding: '10px', cursor: 'pointer', borderBottom: activeTab === 'danger' ? '2px solid #dc3545' : 'none', fontWeight: activeTab === 'danger' ? 'bold' : 'normal', color: '#dc3545' }}
@@ -519,112 +546,121 @@ export default function Settings() {
             {/* TAB: PRIVACY */}
             {activeTab === 'privacy' && (
                 <div className="settings-section">
-                    <h3>Privacy Settings</h3>
-                    <form onSubmit={handleUpdatePrivacy}>
-                        {/* Account Privacy */}
-                        <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <h4 style={{ margin: '0 0 5px 0' }}>Private Account</h4>
-                                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                        When your account is private, only people you approve can see your photos and videos.
-                                    </p>
+                    <div style={{ marginBottom: '30px' }}>
+                        <h3 style={{ margin: 0 }}>Privacy Center</h3>
+                        <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Manage who can see your content and how people interact with you.</p>
+                    </div>
+
+                    <form onSubmit={handleUpdatePrivacy} className="privacy-settings-grid">
+                        {/* 1. Account Privacy */}
+                        <div>
+                            <h5 style={{ margin: '0 0 15px 0', fontSize: '0.9rem', color: '#667eea', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Account Status</h5>
+                            <div className="privacy-card">
+                                <div className="privacy-card-info">
+                                    <h4>Private Account</h4>
+                                    <p>When your account is private, only people you approve can see your photos and videos. Your existing followers won't be affected.</p>
                                 </div>
-                                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '50px', height: '24px' }}>
+                                <label className="premium-switch">
                                     <input 
                                         type="checkbox" 
                                         name="isPrivate" 
                                         checked={privacyData.isPrivate} 
                                         onChange={handlePrivacyChange} 
-                                        style={{ opacity: 0, width: 0, height: 0 }}
                                     />
-                                    <span style={{ 
-                                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, 
-                                        backgroundColor: privacyData.isPrivate ? 'var(--secondary-color)' : '#ccc', 
-                                        transition: '.4s', borderRadius: '24px' 
-                                    }}>
-                                        <span style={{ 
-                                            position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px', 
-                                            backgroundColor: 'white', transition: '.4s', borderRadius: '50%',
-                                            transform: privacyData.isPrivate ? 'translateX(26px)' : 'translateX(0)'
-                                        }}></span>
-                                    </span>
+                                    <span className="slider"></span>
                                 </label>
                             </div>
                         </div>
 
-                        {/* List Visibility */}
-                        <div style={{ marginBottom: '25px' }}>
-                            <h4 style={{ marginBottom: '15px' }}>List Visibility</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Hide Followers List</span>
-                                    <input type="checkbox" name="hideFollowers" checked={privacyData.hideFollowers} onChange={handlePrivacyChange} />
+                        {/* 2. List Visibility */}
+                        <div>
+                            <h5 style={{ margin: '30px 0 15px 0', fontSize: '0.9rem', color: '#667eea', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Visibility & Discovery</h5>
+                            <div className="settings-grid-row">
+                                <div className="privacy-card">
+                                    <div className="privacy-card-info">
+                                        <h4>Hide Followers List</h4>
+                                        <p>Don't show who is following you on your profile. Only you will be able to see your full followers list.</p>
+                                    </div>
+                                    <label className="premium-switch">
+                                        <input type="checkbox" name="hideFollowers" checked={privacyData.hideFollowers} onChange={handlePrivacyChange} />
+                                        <span className="slider"></span>
+                                    </label>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Hide Following List</span>
-                                    <input type="checkbox" name="hideFollowing" checked={privacyData.hideFollowing} onChange={handlePrivacyChange} />
+                                <div className="privacy-card">
+                                    <div className="privacy-card-info">
+                                        <h4>Hide Following List</h4>
+                                        <p>Conceal the list of people you follow. This helps maintain your personal browsing privacy.</p>
+                                    </div>
+                                    <label className="premium-switch">
+                                        <input type="checkbox" name="hideFollowing" checked={privacyData.hideFollowing} onChange={handlePrivacyChange} />
+                                        <span className="slider"></span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="section-divider" style={{ margin: '20px 0', height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+                        {/* 3. Interactions */}
+                        <div>
+                            <h5 style={{ margin: '30px 0 15px 0', fontSize: '0.9rem', color: '#667eea', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Interactions & Controls</h5>
+                            <div className="settings-grid-row">
+                                <div className="select-card">
+                                    <label>Direct Messaging</label>
+                                    <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '15px' }}>Control who can start new conversations with you.</p>
+                                    <select 
+                                        name="messaging" 
+                                        value={privacyData.messaging} 
+                                        onChange={handlePrivacyChange}
+                                        className="form-input"
+                                    >
+                                        <option value="everyone">Everyone</option>
+                                        <option value="followers">Followers Only</option>
+                                        <option value="none">No One</option>
+                                    </select>
+                                </div>
 
-                        {/* Interactions */}
-                        <div style={{ marginBottom: '25px' }}>
-                            <h4 style={{ marginBottom: '15px' }}>Interactions</h4>
-                            
-                            <div className="form-group" style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>Who can message you</label>
-                                <select 
-                                    name="messaging" 
-                                    value={privacyData.messaging} 
-                                    onChange={handlePrivacyChange}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                                >
-                                    <option value="everyone">Everyone</option>
-                                    <option value="followers">Followers Only</option>
-                                    <option value="none">No One</option>
-                                </select>
-                            </div>
+                                <div className="select-card">
+                                    <label>Tags & Mentions</label>
+                                    <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '15px' }}>Decide who can tag you in their posts and stories.</p>
+                                    <select 
+                                        name="tagging" 
+                                        value={privacyData.tagging} 
+                                        onChange={handlePrivacyChange}
+                                        className="form-input"
+                                    >
+                                        <option value="everyone">Everyone</option>
+                                        <option value="followers">Followers Only</option>
+                                        <option value="none">No One</option>
+                                    </select>
+                                </div>
 
-                            <div className="form-group" style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>Who can tag you</label>
-                                <select 
-                                    name="tagging" 
-                                    value={privacyData.tagging} 
-                                    onChange={handlePrivacyChange}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                                >
-                                    <option value="everyone">Everyone</option>
-                                    <option value="followers">Followers Only</option>
-                                    <option value="none">No One</option>
-                                </select>
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>Who can comment on your posts</label>
-                                <select 
-                                    name="commenting" 
-                                    value={privacyData.commenting} 
-                                    onChange={handlePrivacyChange}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                                >
-                                    <option value="everyone">Everyone</option>
-                                    <option value="followers">Followers Only</option>
-                                    <option value="none">No One</option>
-                                </select>
+                                <div className="select-card">
+                                    <label>Comments Control</label>
+                                    <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '15px' }}>Manage who is allowed to comment on your public content.</p>
+                                    <select 
+                                        name="commenting" 
+                                        value={privacyData.commenting} 
+                                        onChange={handlePrivacyChange}
+                                        className="form-input"
+                                    >
+                                        <option value="everyone">Everyone</option>
+                                        <option value="followers">Followers Only</option>
+                                        <option value="none">No One</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
-                        <button 
-                            type="submit" 
-                            disabled={isLoading} 
-                            className="btn-premium"
-                            style={{ width: '100%' }}
-                        >
-                            {isLoading ? 'Saving...' : 'Save Privacy Settings'}
-                        </button>
+                        <div className="privacy-tab-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>Changes to privacy settings take effect immediately after saving.</p>
+                            <button 
+                                type="submit" 
+                                disabled={isLoading} 
+                                className="btn-premium"
+                                style={{ padding: '14px 60px', fontSize: '1.1rem', borderRadius: '14px', boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)' }}
+                            >
+                                {isLoading ? '🚀 Applying Changes...' : 'Save Privacy Configuration'}
+                            </button>
+                        </div>
                     </form>
                 </div>
             )}
@@ -681,43 +717,84 @@ export default function Settings() {
                         </div>
 
                         {!twoFactorData.isEnabled && !twoFactorData.showSetup && (
-                            <button onClick={handleSetup2FA} style={{ padding: '10px 15px', backgroundColor: 'var(--secondary-color)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                Enable 2FA
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>Choose how you'd like to receive your security codes:</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                                    <button onClick={() => handleSetup2FA('totp')} className="setup-method-btn">
+                                        <div style={{ fontSize: '1.2rem', marginBottom: '5px' }}>📱</div>
+                                        <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>Authenticator</div>
+                                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Google/Authy</div>
+                                    </button>
+                                    <button onClick={() => handleSetup2FA('email')} className="setup-method-btn">
+                                        <div style={{ fontSize: '1.2rem', marginBottom: '5px' }}>📧</div>
+                                        <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>Email</div>
+                                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{currentUser?.email?.replace(/(.{2}).*(@.*)/, "$1***$2")}</div>
+                                    </button>
+                                    <button onClick={() => handleSetup2FA('sms')} className="setup-method-btn">
+                                        <div style={{ fontSize: '1.2rem', marginBottom: '5px' }}>💬</div>
+                                        <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>SMS</div>
+                                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{currentUser?.phone ? `Ends in ${currentUser.phone.slice(-4)}` : "Set phone first"}</div>
+                                    </button>
+                                </div>
+                            </div>
                         )}
 
                         {twoFactorData.showSetup && (
-                            <div style={{ padding: '20px', backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: '8px', marginTop: '15px' }}>
-                                <h5 style={{ marginBottom: '15px' }}>Scan QR Code</h5>
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                                    <img src={twoFactorData.qrCode} alt="QR Code" style={{ border: '5px solid white', borderRadius: '5px' }} />
-                                    <div>
-                                        <p style={{ fontSize: '0.9rem', marginBottom: '15px' }}>
-                                            1. Open your authenticator app (Google Authenticator, Authy, etc.)<br/>
-                                            2. Scan this QR code or enter the secret manually: <code>{twoFactorData.secret}</code><br/>
-                                            3. Enter the 6-digit code from the app below:
-                                        </p>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <input 
-                                                type="text" 
-                                                placeholder="000000" 
-                                                value={twoFactorData.token} 
-                                                onChange={(e) => setTwoFactorData({...twoFactorData, token: e.target.value})}
-                                                style={{ width: '120px', padding: '10px', borderRadius: '5px', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '1.2rem', letterSpacing: '2px' }}
-                                            />
-                                            <button onClick={handleVerify2FA} disabled={isLoading} style={{ padding: '10px 20px', backgroundColor: 'var(--secondary-color)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                                Verify & Enable
-                                            </button>
-                                        </div>
-                                    </div>
+                            <div style={{ padding: '24px', backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: '14px', marginTop: '15px', border: '1px solid rgba(118, 75, 162, 0.1)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                    <h5 style={{ margin: 0, fontSize: '1.1rem' }}>
+                                        {twoFactorData.setupMethod === 'totp' ? 'Scan QR Code' : `Verify ${twoFactorData.setupMethod === 'email' ? 'Email' : 'SMS'}`}
+                                    </h5>
+                                    <button onClick={() => setTwoFactorData({...twoFactorData, showSetup: false})} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Cancel</button>
                                 </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    {twoFactorData.setupMethod === 'totp' ? (
+                                        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+                                            <img src={twoFactorData.qrCode} alt="QR Code" style={{ border: '8px solid white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                            <div>
+                                                <p style={{ fontSize: '0.9rem', marginBottom: '15px', lineHeight: '1.6' }}>
+                                                    1. Open your authenticator app (Google Authenticator, Authy, etc.)<br/>
+                                                    2. Scan this QR code or enter the secret manually: <code>{twoFactorData.secret}</code><br/>
+                                                    3. Enter the 6-digit code from the app below:
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ padding: '10px 0' }}>
+                                            <p style={{ fontSize: '0.95rem', marginBottom: '15px' }}>
+                                                A 6-digit verification code has been sent to your <strong>{twoFactorData.setupMethod === 'email' ? 'email address' : 'phone number'}</strong>. Enter it below to enable 2FA.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="000000" 
+                                            value={twoFactorData.token} 
+                                            onChange={(e) => setTwoFactorData({...twoFactorData, token: e.target.value})}
+                                            style={{ width: '140px', padding: '12px', borderRadius: '10px', border: '2px solid #eee', textAlign: 'center', fontSize: '1.3rem', letterSpacing: '4px', fontWeight: '800' }}
+                                        />
+                                        <button onClick={handleVerify2FA} disabled={isLoading} className="btn-premium" style={{ height: '50px', padding: '0 25px' }}>
+                                            {isLoading ? 'Verifying...' : 'Enable 2FA'}
+                                        </button>
+                                    </div>
+
+                                    {(twoFactorData.setupMethod === 'email' || twoFactorData.setupMethod === 'sms') && (
+                                        <button onClick={handleResendOTP} disabled={isLoading} style={{ background: 'none', border: 'none', color: 'var(--secondary-color)', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', width: 'fit-content' }}>
+                                            Didn't receive code? Resend
+                                        </button>
+                                    )}
+                                </div>
+
                                 {twoFactorData.backupCodes.length > 0 && (
-                                    <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '5px' }}>
-                                        <h6 style={{ margin: '0 0 10px 0', color: '#856404' }}>Save your Backup Codes!</h6>
-                                        <p style={{ fontSize: '0.8rem', color: '#856404', marginBottom: '10px' }}>Use these if you lose access to your authenticator app. Each code can be used once.</p>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                                    <div style={{ marginTop: '25px', padding: '18px', backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '12px' }}>
+                                        <h6 style={{ margin: '0 0 8px 0', color: '#856404', fontSize: '0.95rem' }}>Save your Backup Codes!</h6>
+                                        <p style={{ fontSize: '0.85rem', color: '#856404', marginBottom: '12px' }}>Use these if you lose access to your {twoFactorData.setupMethod === 'totp' ? 'authenticator app' : 'phone'}. Each code can be used once.</p>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                             {twoFactorData.backupCodes.map((code, idx) => (
-                                                <code key={idx} style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{code}</code>
+                                                <code key={idx} style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#333', background: 'rgba(255,255,255,0.5)', padding: '4px 8px', borderRadius: '4px', textAlign: 'center' }}>{code}</code>
                                             ))}
                                         </div>
                                     </div>
@@ -733,37 +810,82 @@ export default function Settings() {
                     </div>
 
                     {/* Active Sessions Section */}
-                    <div style={{ paddingBottom: '25px', marginBottom: '25px', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <h4 style={{ margin: 0 }}>Active Sessions & Devices</h4>
-                            <button onClick={handleLogoutAll} style={{ fontSize: '0.85rem', color: '#dc3545', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                    <div style={{ paddingBottom: '35px', marginBottom: '35px', borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+                            <div>
+                                <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800' }}>Active Sessions & Devices</h4>
+                                <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                                    Manage and revoke access from other devices.
+                                </p>
+                            </div>
+                            <button onClick={handleLogoutAll} style={{ fontSize: '0.85rem', color: '#dc3545', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', padding: '8px 12px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(220, 53, 69, 0.05)'} onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}>
                                 Logout from all devices
                             </button>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {sessions.map((session) => (
-                                <div key={session._id} className="session-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderRadius: '12px' }}>
-                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                        <div style={{ fontSize: '1.8rem' }}>
-                                            {session.device?.os?.includes('Windows') ? '💻' : (session.device?.isMobile ? '📱' : '🌐')}
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-color)' }}>
-                                                {session.device?.browser} on {session.device?.os}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            {/* This Device Section */}
+                            {sessions.find(s => s.isCurrent) && (
+                                <div>
+                                    <h5 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: '#667eea', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>This Device</h5>
+                                    {sessions.filter(s => s.isCurrent).map(session => (
+                                        <div key={session._id} className="session-item current" style={{ borderLeft: '4px solid #667eea' }}>
+                                            <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+                                                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(118, 75, 162, 0.1), rgba(102, 126, 234, 0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', position: 'relative' }}>
+                                                    {session.device?.os?.includes('Windows') ? '💻' : (session.device?.browser?.includes('Chrome') ? '🌐' : (session.device?.isMobile ? '📱' : '💻'))}
+                                                    <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '12px', height: '12px', background: '#22c55e', border: '2px solid white', borderRadius: '50%' }}></span>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: '700', fontSize: '1.05rem', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        {session.device?.browser || 'Unknown Browser'} on {session.device?.os || 'Unknown OS'}
+                                                        <span className="current-device-badge">ACTIVE NOW</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                        {session.ip} • Last active: {new Date(session.lastActive).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                {session.ip} • active {new Date(session.lastActive).toLocaleTimeString()}
-                                                {session.isCurrent && <span style={{ marginLeft: '10px', color: '#764ba2', fontWeight: '800' }}>• CURRENT</span>}
-                                            </div>
                                         </div>
-                                    </div>
-                                    {!session.isCurrent && (
-                                        <button onClick={() => handleRevokeSession(session._id)} style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: 'rgba(220, 53, 69, 0.1)', border: 'none', color: '#dc3545', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}>
-                                            Revoke
-                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Other Devices Section */}
+                            <div>
+                                <h5 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Other Logged-in Devices</h5>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {sessions.filter(s => !s.isCurrent).length > 0 ? (
+                                        sessions.filter(s => !s.isCurrent).map(session => (
+                                            <div key={session._id} className="session-item">
+                                                <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+                                                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+                                                        {session.device?.os?.includes('Windows') ? '💻' : (session.device?.browser?.includes('Chrome') ? '🌐' : (session.device?.isMobile ? '📱' : '💻'))}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-color)' }}>
+                                                            {session.device?.browser || 'Unknown Browser'} on {session.device?.os || 'Unknown OS'}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                                            {session.ip} • Last active: {new Date(session.lastActive).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleRevokeSession(session._id)} 
+                                                    className="session-revoke-btn"
+                                                    title="Logout from this device"
+                                                >
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ textAlign: 'center', padding: '30px', background: 'rgba(0,0,0,0.02)', borderRadius: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem', border: '1px dashed #eee' }}>
+                                            No other active sessions found.
+                                        </div>
                                     )}
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
 
@@ -785,6 +907,13 @@ export default function Settings() {
                             )}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* TAB: SCREEN TIME */}
+            {activeTab === 'screentime' && (
+                <div className="settings-section">
+                    <ScreenTimeSettings />
                 </div>
             )}
 

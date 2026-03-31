@@ -7,6 +7,7 @@ import {
     logoutUser,
     setup2FA,
     verify2FA,
+    resend2FAOTP,
     forgotPassword,
     verifyOTP,
     resetPassword,
@@ -29,6 +30,7 @@ router.post('/logout', logoutUser);
 // Protected Auth Routes
 router.post('/2fa/setup', authMiddleware, setup2FA);
 router.post('/2fa/verify', authMiddleware, verify2FA);
+router.post('/2fa/resend', authMiddleware, resend2FAOTP);
 
 // Password Reset Routes
 router.post('/forgot-password', forgotPassword);

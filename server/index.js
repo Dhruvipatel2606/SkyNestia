@@ -3,6 +3,7 @@ console.log("Gemini key loaded:", !!process.env.GEMINI_API_KEY);
 import http from "http";
 import app from "./app.js";
 import { initIO } from "./socket/io.js";
+import startScreenTimeResetJob from "./jobs/resetScreenTime.js";
 
 const PORT = process.env.PORT || 5002;
 
@@ -11,6 +12,9 @@ const httpServer = http.createServer(app);
 
 // Initialize Socket.IO
 initIO(httpServer);
+
+// Start cron jobs
+startScreenTimeResetJob();
 
 // Start server
 const server = httpServer.listen(PORT, () => {

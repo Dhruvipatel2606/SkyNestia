@@ -18,6 +18,7 @@ import HighlightRoute from './routes/HighlightRoute.js';
 import ReelRoute from './routes/ReelRoute.js';
 import SupportRoute from './routes/SupportRoute.js';
 import LegalRoute from './routes/LegalRoute.js';
+import ScreenTimeRoute from './routes/ScreenTimeRoute.js';
 import morgan from 'morgan';
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/highlight', HighlightRoute);
 app.use('/api/reels', ReelRoute);
 app.use('/api/support', SupportRoute);
 app.use('/api/legal', LegalRoute);
+app.use('/api/screentime', ScreenTimeRoute);
 
 // Singular aliases for client compatibility
 app.use("/api/post", PostRoute);

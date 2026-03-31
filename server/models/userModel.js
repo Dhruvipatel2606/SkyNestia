@@ -135,13 +135,19 @@ const userSchema = new Schema({
         type: Boolean,
         default: false
     },
+    twoFactorMethod: {
+        type: String,
+        enum: ['totp', 'email', 'sms'],
+        default: 'totp'
+    },
     twoFactorSecret: {
         type: String,
         select: false
     },
     otp: {
         code: String,
-        expiresAt: Date
+        expiresAt: Date,
+        purpose: { type: String, enum: ['2fa', 'reset_password'] }
     },
 
     // --- Lifecycle ---
@@ -161,7 +167,14 @@ const userSchema = new Schema({
         timeSpent: { type: Number, default: 0 } // Time in seconds
     }],
 
-
+    // --- Screen Time Limiting ---
+    screenTime: {
+        dailyLimitMinutes: { type: Number, default: 0 },       // 0 = unlimited
+        isEnabled: { type: Boolean, default: false },
+        resetTime: { type: String, default: "00:00" },          // HH:MM format for daily reset
+        lastResetDate: { type: Date, default: null },
+        overrideToday: { type: Boolean, default: false }        // "Continue for today" flag
+    },
 
 }, { timestamps: true });
 userSchema.index({ username: 'text' });
