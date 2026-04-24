@@ -6,6 +6,7 @@ import Post from "./Post/Post";
 import SuggestedUsers from "./SuggestedUsers";
 import './Stories.css';
 import './AutoScrollStyles.css';
+import './Feed.css';
 import PostSkeleton from "./Skeletons/PostSkeleton";
 import { FiPlay, FiSquare, FiChevronDown } from 'react-icons/fi';
 
@@ -108,7 +109,7 @@ const Feed = () => {
   }, [isAutoScrolling, scrollSpeed]);
 
   if (loading && page === 1) return (
-    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px', maxWidth: '1250px', margin: '0 auto' }}>
+    <div className="feed-layout">
       <div className="feed-container">
         <PostSkeleton />
         <PostSkeleton />
@@ -123,7 +124,7 @@ const Feed = () => {
   if (error && page === 1) return <div className="card error-card"><p>Error: {error}</p></div>;
 
   return (
-    <div className="feed-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px', maxWidth: '1250px', margin: '0 auto' }}>
+    <div className="feed-layout">
       <div className="feed-container">
         <div className="sticky-feed-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

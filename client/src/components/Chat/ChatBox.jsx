@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { addMessage, getMessages } from "../../api/MessageRequests";
 import { getUser } from "../../api/UserRequests";
-import API from "../../api.js";
+import API, { BASE_URL } from "../../api.js";
 import "./Chat.css";
 import { useSocket } from "../../SocketContext";
 import { importKey, deriveSharedKey, encryptMessage, decryptMessage, exportKey, generateKeyPair } from '../../utils/Encryption';
-import { FiArrowLeft, FiVideo, FiPhone } from 'react-icons/fi';
+import { FiArrowLeft, FiVideo, FiPhone, FiLock } from 'react-icons/fi';
 import VideoCall from "./VideoCall";
 import IncomingCall from "./IncomingCall";
 
@@ -147,7 +147,9 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
     // ───── Call Handlers ─────
     const currentUserData = (() => {
         try {
-            return JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user'));
+            const sessionUser = sessionStorage.getItem('user');
+            const localUser = localStorage.getItem('user');
+            return JSON.parse(sessionUser || localUser || 'null');
         } catch { return null; }
     })();
 
@@ -328,6 +330,41 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
         }
     };
 
+    // Delete Handlers
+    const handleDeleteMessage = async (messageId) => {
+        if (!window.confirm("Unsend this message?")) return;
+        try {
+            await API.delete(`/message/${messageId}`);
+            setMessages((prev) => prev.filter((m) => m._id !== messageId));
+            const receiverId = chat.members.find((id) => id !== currentUser);
+            socket?.emit("delete-message", { messageId, receiverId, chatId: chat._id });
+        } catch (err) { console.error("Unsend failed", err); }
+    };
+
+    const handleDeleteChat = async () => {
+        if (!window.confirm("Delete this entire conversation? This cannot be undone.")) return;
+        try {
+            const otherId = chat.members.find(id => id !== currentUser);
+            await API.delete(`/chat/${currentUser}/${otherId}`);
+            setChat(null); // Close chat
+            window.location.reload(); // Refresh to update chat list
+        } catch (err) { console.error("Delete chat failed", err); }
+    };
+
+    useEffect(() => {
+        if (!socket) return;
+        const handleMsgDeleted = (data) => {
+            if (data.chatId === chat?._id) {
+                setMessages((prev) => prev.filter((m) => m._id !== data.messageId));
+            }
+        };
+        socket.on("delete-message", handleMsgDeleted);
+        return () => socket.off("delete-message", handleMsgDeleted);
+    }, [socket, chat]);
+
+    // Dropdown state
+    const [selectedMsg, setSelectedMsg] = useState(null);
+
     const handleInput = (e) => {
         setNewMessage(e.target.value);
         if (!socket || !chat) return;
@@ -343,7 +380,7 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
     const remoteUserId = chat?.members?.find((id) => id !== currentUser);
 
     return (
-        <div className="chatWindow">
+        <div className="chatWindow" onClick={() => setSelectedMsg(null)}>
             {chat ? (
                 <>
                     {/* Chat Header */}
@@ -354,7 +391,10 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                             </div>
                             <img src={getProfilePic(userData)} alt="" className="chat-header-img" />
                             <div className="chat-header-name">
-                                <span className="name">{displayName} {userData?.lastname || ""}</span>
+                                <span className="name">
+                                    {displayName} {userData?.lastname || ""}
+                                    {sharedKey && <FiLock size={12} style={{ marginLeft: '6px', color: '#0095f6' }} title="End-to-end encrypted" />}
+                                </span>
                                 {isTyping ? (
                                     <span className="typing-indicator">typing...</span>
                                 ) : isOnline ? (
@@ -380,6 +420,14 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                             >
                                 <FiVideo />
                             </button>
+                            <button
+                                className="header-action-btn"
+                                onClick={handleDeleteChat}
+                                title="Delete Conversation"
+                                style={{ color: '#ed4956' }}
+                            >
+                                🗑️
+                            </button>
                         </div>
                     </div>
 
@@ -396,6 +444,21 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
 
                     {/* Messages */}
                     <div className="chat-body">
+                        {sharedKey && (
+                            <div className="e2ee-notice" style={{ 
+                                textAlign: 'center', 
+                                padding: '20px', 
+                                color: '#8e8e8e', 
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '5px'
+                            }}>
+                                <FiLock size={14} />
+                                <span>Messages are end-to-end encrypted. No one outside of this chat, not even SkyNestia, can read them.</span>
+                            </div>
+                        )}
                         {messages.map((message) => (
                             message.isCallLog ? (
                                 <div className="message call-history" key={message._id} ref={scroll}>
@@ -409,7 +472,41 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receiveMessage, setChat, o
                                     </span>
                                 </div>
                             ) : (
-                                    <div ref={scroll} className={message.senderId === currentUser ? "message own" : "message"} key={message._id || Math.random()}>
+                                    <div 
+                                        ref={scroll} 
+                                        className={message.senderId === currentUser ? "message own" : "message"} 
+                                        key={message._id || Math.random()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (message.senderId === currentUser) {
+                                                setSelectedMsg(selectedMsg === message._id ? null : message._id);
+                                            }
+                                        }}
+                                        style={{ cursor: message.senderId === currentUser ? 'pointer' : 'default', position: 'relative' }}
+                                    >
+                                        {selectedMsg === message._id && (
+                                            <div className="message-dropdown" style={{ 
+                                                position: 'absolute', 
+                                                top: '-40px', 
+                                                right: '0', 
+                                                backgroundColor: 'white', 
+                                                boxShadow: '0 2px 10px rgba(0,0,0,0.1)', 
+                                                borderRadius: '8px',
+                                                padding: '5px 12px',
+                                                zIndex: 10,
+                                                fontSize: '0.8rem',
+                                                color: '#ed4956',
+                                                fontWeight: 'bold',
+                                                border: '1px solid #efefef'
+                                            }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteMessage(message._id);
+                                            }}
+                                            >
+                                                Unsend
+                                            </div>
+                                        )}
                                         {message.image && (
                                             <img 
                                                 src={`${API.defaults.baseURL.replace('/api', '')}${message.image}`} 

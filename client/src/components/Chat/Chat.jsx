@@ -22,7 +22,7 @@ const Chat = () => {
         try {
             const sessionUser = sessionStorage.getItem('user');
             const localUser = localStorage.getItem('user');
-            return JSON.parse(sessionUser || localUser);
+            return JSON.parse(sessionUser || localUser || 'null');
         } catch (e) { return null; }
     }, []);
 
@@ -37,16 +37,31 @@ const Chat = () => {
 
         // Listen for online users
         socket.on("get-users", (users) => {
+            console.log("Online users updated:", users.length);
             setOnlineUsers(users);
         });
 
         // Listen for incoming messages
         socket.on("receive-message", (data) => {
-            setReceiveMessage(data);
+            console.log("New real-time message received from room");
+            
+            // Move the chat to the top of the list if it exists
+            setChats((prev) => {
+                const chatIndex = prev.findIndex(c => c._id === data.chatId);
+                if (chatIndex > -1) {
+                    const updatedChats = [...prev];
+                    const chat = updatedChats.splice(chatIndex, 1)[0];
+                    return [chat, ...updatedChats];
+                }
+                return prev; // If not found, it might be a new chat (should be fetched via API or another event)
+            });
+
+            // Add a timestamp to ensure state change triggers even if message content is identical
+            setReceiveMessage({ ...data, receivedAt: Date.now() });
         });
 
         return () => {
-            // Clean up specific listeners (do not disconnect global socket)
+            // Clean up specific listeners
             socket.off("get-users");
             socket.off("receive-message");
         };
@@ -55,7 +70,19 @@ const Chat = () => {
     // 3. Send Message
     useEffect(() => {
         if (sendMessage !== null && socket) {
+            console.log("Emitting send-message through socket");
             socket.emit("send-message", sendMessage);
+
+            // Also move the chat to the top for the sender
+            setChats((prev) => {
+                const chatIndex = prev.findIndex(c => c._id === sendMessage.chatId);
+                if (chatIndex > -1) {
+                    const updatedChats = [...prev];
+                    const chat = updatedChats.splice(chatIndex, 1)[0];
+                    return [chat, ...updatedChats];
+                }
+                return prev;
+            });
         }
     }, [sendMessage, socket]);
 

@@ -51,17 +51,12 @@ function ScreenTimeGuard({ children }) {
 /* Wrapper that provides the regular sidebar + main layout */
 function AppLayout({ user, setUser, sidebarOpen, setSidebarOpen, children }) {
   return (
-    <>
+    <div className={`layout-wrapper ${!user ? 'full-width' : (sidebarOpen ? 'with-sidebar' : 'with-sidebar-collapsed')}`}>
       {user && <Sidebar isOpen={sidebarOpen} toggle={() => setSidebarOpen(!sidebarOpen)} />}
-      <main className="main" style={{
-        marginLeft: !user ? 0 : (sidebarOpen ? '240px' : '70px'),
-        width: !user ? '100%' : (sidebarOpen ? 'calc(100% - 240px)' : 'calc(100% - 70px)'),
-        justifyContent: !user ? 'center' : 'flex-start',
-        transition: 'margin-left 0.3s ease, width 0.3s ease'
-      }}>
+      <main className="main">
         {children}
       </main>
-    </>
+    </div>
   )
 }
 

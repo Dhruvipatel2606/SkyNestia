@@ -56,6 +56,7 @@ export default function Settings() {
     });
 
     const [sessions, setSessions] = useState([]);
+    const [deletePassword, setDeletePassword] = useState('');
     
     // Support State
     const [reportData, setReportData] = useState({ reason: 'bug', description: '' });
@@ -401,21 +402,29 @@ export default function Settings() {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("WARNING: This action is permanent. Are you absolutely sure?")) return;
+        if (!deletePassword) {
+            setError("Identity verification required: Please enter your password to confirm permanent deletion.");
+            return;
+        }
+
+        const confirmText = "🚨 IRREVOCABLE DELETION WARNING 🚨\n\nThis will instantly and PERMANENTLY erase:\n• Your entire profile & identity\n• Every post, photo, and video you've shared\n• All your interactions, comments, and likes\n• All private messages and chat history\n• Your entire social circle and connections\n\nThere is absolutely NO recovery possible after this. Are you sure you want to proceed?";
+        
+        if (!window.confirm(confirmText)) return;
+
         setIsLoading(true);
         clearMessages();
         try {
-            await API.delete(`/user/${currentUser._id}`, {
-                data: { currentUserId: currentUser._id, CurrentUserAdminStatus: currentUser.isAdmin }
+            await API.delete('/user/delete', {
+                data: { password: deletePassword }
             });
-            setMessage("Account deleted permanently.");
+            setMessage("Your data has been permanently purged from SkyNestia. Redirecting to start...");
             setTimeout(() => {
                 sessionStorage.clear();
                 localStorage.clear();
                 window.location.href = '/login';
-            }, 2000);
+            }, 3000);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to delete account.");
+            setError(err.response?.data?.message || "Direct wipe failed. Please verify your password and try again.");
             setIsLoading(false);
         }
     };
@@ -911,7 +920,7 @@ export default function Settings() {
                 <div className="settings-section danger">
                     <h3 style={{ color: '#dc3545' }}>Danger Zone</h3>
                     
-                    <div className="setting-item" style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="setting-item" style={{ marginBottom: '35px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <h4 style={{ margin: '0 0 5px 0' }}>Deactivate Account</h4>
                             <p style={{ margin: 0, fontSize: '0.9em', color: 'var(--text-secondary)' }}>
@@ -923,16 +932,31 @@ export default function Settings() {
                         </button>
                     </div>
 
-                    <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#dc3545' }}>Delete Account Permanently</h4>
-                            <p style={{ margin: 0, fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                Delete your profile, posts, and entire account history forever.
+                    <div className="setting-item" style={{ padding: '30px', background: '#fffafb', border: '1px solid #ffebeb', borderRadius: '24px' }}>
+                        <div style={{ marginBottom: '25px' }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: '#dc3545', fontSize: '1.2rem', fontWeight: '800' }}>Permanently Wipe Identity</h4>
+                            <p style={{ margin: 0, fontSize: '0.95em', color: '#64748b', lineHeight: '1.6' }}>
+                                This action is absolute. Your profile, handles, posts, messages, and presence will be completely removed from the SkyNestia cloud forever.
                             </p>
                         </div>
-                        <button onClick={handleDelete} disabled={isLoading} className="btn-danger-premium">
-                            Delete Account
-                        </button>
+                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input 
+                                type="password" 
+                                placeholder="Authorize with your password" 
+                                value={deletePassword}
+                                onChange={(e) => setDeletePassword(e.target.value)}
+                                className="form-input"
+                                style={{ flex: 1, minWidth: '280px', border: '2px solid #ffcfcf !important' }}
+                            />
+                            <button 
+                                onClick={handleDelete} 
+                                disabled={isLoading || !deletePassword} 
+                                className="btn-danger-premium"
+                                style={{ padding: '14px 40px', borderRadius: '12px', fontSize: '1rem', background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)', boxShadow: '0 8px 15px rgba(225, 29, 72, 0.15)', height: '52px' }}
+                            >
+                                {isLoading ? 'Wiping Cloud Data...' : 'Permanent Wipe'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

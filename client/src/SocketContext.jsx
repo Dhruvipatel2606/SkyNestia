@@ -11,11 +11,19 @@ export const SocketProvider = ({ children, userId }) => {
     useEffect(() => {
         if (!userId) return;
 
-        // Ensure we connect to the correct backend URL
-        const socketUrl = "http://localhost:5002"; 
-        const newSocket = io(socketUrl);
+        // Use the current host to ensure it works on other devices in the same network
+        const socketUrl = `http://${window.location.hostname}:5002`; 
+        console.log("Connecting to socket at:", socketUrl);
+        const newSocket = io(socketUrl, {
+            transports: ['websocket'],
+            reconnectionAttempts: 5,
+        });
 
-        newSocket.emit("new-user-add", userId);
+        newSocket.on("connect", () => {
+            console.log("Socket connected successfully with ID:", newSocket.id);
+            newSocket.emit("new-user-add", userId);
+        });
+
         setSocket(newSocket);
 
         return () => {

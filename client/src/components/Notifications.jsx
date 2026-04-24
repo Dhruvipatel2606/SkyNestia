@@ -118,11 +118,19 @@ const Notifications = ({ isOpen, onClose }) => {
                                         className="sender-avatar"
                                     />
                                     <div className="notif-text">
-                                        <strong>{notif.senderId?.username}</strong>
-                                        {notif.type === 'like' && ` liked your post.`}
-                                        {notif.type === 'follow_accept' && ` accepted your follow request.`}
-                                        {notif.type === 'follow_request' && ` sent you a follow request.`}
-                                        {notif.type === 'follow' && ` started following you.`}
+                                        <div className="notif-message-row">
+                                            <Link to={`/profile/${notif.senderId?._id}`} className="notif-username">
+                                                {notif.senderId?.username || "Someone"}
+                                            </Link>
+                                            <span className="notif-action">
+                                                {notif.type === 'like' && ` liked your post.`}
+                                                {notif.type === 'follow_accept' && ` accepted your follow request.`}
+                                                {notif.type === 'follow_request' && ` sent you a follow request.`}
+                                                {notif.type === 'follow' && ` started following you.`}
+                                                {notif.type === 'comment' && ` commented on your post.`}
+                                                {notif.type === 'tag_request' && ` tagged you in a post.`}
+                                            </span>
+                                        </div>
                                         <span className="time-ago">{new Date(notif.createdAt).toLocaleDateString()}</span>
                                     </div>
                                     {notif.postId && notif.postId.image && (

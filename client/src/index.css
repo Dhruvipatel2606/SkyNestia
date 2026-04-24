@@ -25,6 +25,9 @@
 
   --transition-speed: 0.4s;
   --transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 70px;
 }
 
 [data-theme='dark'] {
@@ -126,11 +129,17 @@ body::before {
 /* Layout */
 .app {
   display: flex;
-  flex-direction: row;
-  /* Sidebar Side-by-Side */
+  flex-direction: column;
   min-height: 100vh;
   background: var(--background-start);
   transition: background 0.5s ease;
+}
+
+.layout-wrapper {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  position: relative;
 }
 
 .main {
@@ -138,27 +147,47 @@ body::before {
   display: flex;
   flex-direction: column;
   padding: 2rem;
-  margin-left: 240px;
-  /* Space for fixed sidebar */
-  width: calc(100% - 240px);
+  transition: margin-left 0.3s var(--transition-ease), width 0.3s var(--transition-ease);
+  min-width: 0; /* Prevent flex children from overflowing */
+}
+
+/* Sidebar Responsive Offsets */
+.layout-wrapper.with-sidebar .main {
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+}
+
+.layout-wrapper.with-sidebar-collapsed .main {
+  margin-left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+.layout-wrapper.full-width .main {
+  margin-left: 0;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
+  :root {
+    --sidebar-width: 70px;
+  }
+  
   .main {
-    margin-left: 70px;
-    /* Condensed sidebar width */
-    width: calc(100% - 70px);
-    padding: 1rem;
+    padding: 1.5rem 1rem;
   }
 }
 
 @media (max-width: 500px) {
+  :root {
+    --sidebar-width: 0px;
+    --sidebar-collapsed-width: 0px;
+  }
+
   .main {
-    margin-left: 0;
-    width: 100%;
+    margin-left: 0 !important;
+    width: 100% !important;
     padding: 1rem;
-    padding-bottom: 80px;
-    /* Space for bottom nav */
+    padding-bottom: 90px; /* Space for bottom nav */
   }
 
   .nav {

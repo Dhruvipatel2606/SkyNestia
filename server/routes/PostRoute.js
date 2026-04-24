@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPost, deletePost, getPost, getFeed, likePost, updatePost, getPendingTagPosts, toggleTagStatus, getUserPosts, upload, generateCaption, getSavedPosts, toggleSavePost, getDrafts, getScheduled, searchPosts, getTrendingPosts, getExploreFeed, hidePost } from '../controllers/PostController.js';
+import { createPost, deletePost, getPost, getFeed, likePost, updatePost, getPendingTagPosts, toggleTagStatus, getUserPosts, getTaggedPosts, upload, generateCaption, getSavedPosts, toggleSavePost, getDrafts, getScheduled, searchPosts, getTrendingPosts, getExploreFeed, hidePost } from '../controllers/PostController.js';
 
 import authMiddleware from '../middleware/authMiddleware.js';
 import { aiLimiter } from '../middleware/rateLimiter.js';
@@ -20,6 +20,7 @@ router.put('/:id/hide', authMiddleware, hidePost);
 
 router.get('/:id', getPost);
 router.get('/user/:id', getUserPosts);
+router.get('/user/:id/tagged', authMiddleware, getTaggedPosts);
 router.put('/:id', authMiddleware, updatePost);
 
 router.delete('/:id', authMiddleware, deletePost);

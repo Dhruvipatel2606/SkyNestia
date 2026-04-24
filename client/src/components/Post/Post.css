@@ -284,18 +284,67 @@
     justify-content: center;
     z-index: 9;
     pointer-events: none;
+    background: rgba(0, 0, 0, 0.15);
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .tags-list-bubble {
-    background: rgba(0, 0, 0, 0.8);
-    padding: 12px;
-    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 14px 18px;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     max-width: 80%;
     pointer-events: auto;
-    animation: fadeIn 0.2s ease;
+    animation: bubbleFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@keyframes bubbleFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Individual tag item wrapper */
+.tagged-user-item {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Approved tag: smooth fade-in */
+.tag-approved-fade {
+    animation: tagApprovedAppear 0.4s ease forwards;
+}
+
+@keyframes tagApprovedAppear {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Pending tag: static fade */
+.tag-pending-fade {
+    opacity: 0.1;
 }
 
 .tagged-user-link {
@@ -303,17 +352,47 @@
     text-decoration: none;
     font-weight: 500;
     font-size: 0.9rem;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Approved tag: fully visible and interactive */
+.tag-approved {
+    opacity: 1;
+    color: #fff;
+}
+
+.tag-approved:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #8bb9fe;
+    text-decoration: none;
+}
+
+/* Pending tag: faded completely, non-interactive */
 .tag-pending {
-    opacity: 0.5;
+    opacity: 0.1;
     font-style: italic;
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: default;
+    transition: opacity 0.5s ease;
 }
 
-.tagged-user-link:hover {
-    text-decoration: underline;
-    color: var(--secondary-color);
+/* "pending" badge label */
+.tag-pending-label {
+    font-size: 0.65rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 

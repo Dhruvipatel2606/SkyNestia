@@ -363,17 +363,29 @@ const Post = ({ post }) => {
                         </button>
 
                         {showTags && (
-                            <div className="tags-overlay">
-                                <div className="tags-list-bubble">
+                            <div className="tags-overlay" onClick={() => setShowTags(false)}>
+                                <div className="tags-list-bubble" onClick={(e) => e.stopPropagation()}>
                                     {post.tags.filter(t => t.status !== 'rejected').map((tag, idx) => (
-                                        <Link
-                                            to={`/profile/${tag.userId?._id}`}
+                                        <div
                                             key={idx}
-                                            className={`tagged-user-link ${tag.status === 'pending' ? 'tag-pending' : ''}`}
-                                            title={tag.status === 'pending' ? 'Pending Approval' : 'Approved'}
+                                            className={`tagged-user-item ${tag.status === 'pending' ? 'tag-pending-fade' : 'tag-approved-fade'}`}
                                         >
-                                            {tag.userId?.username || tag.userId?.firstname || "Unknown User"}
-                                        </Link>
+                                            {tag.status === 'approved' ? (
+                                                <Link
+                                                    to={`/profile/${tag.userId?._id}`}
+                                                    className="tagged-user-link tag-approved"
+                                                >
+                                                    <FiUser size={13} />
+                                                    {tag.userId?.username || tag.userId?.firstname || "Unknown User"}
+                                                </Link>
+                                            ) : (
+                                                <span className="tagged-user-link tag-pending" title="Awaiting approval">
+                                                    <FiUser size={13} />
+                                                    {tag.userId?.username || tag.userId?.firstname || "Unknown User"}
+                                                    <span className="tag-pending-label">pending</span>
+                                                </span>
+                                            )}
+                                        </div>
                                     ))}
                                 </div>
                             </div>

@@ -25,33 +25,27 @@ export const initIO = (httpServer) => {
                 );
             }
             socket.join(newUserId);
-            console.log(`User ${newUserId} connected`);
+            console.log(`User ${newUserId} joined their unique room`);
             io.emit("get-users", activeUsers);
         });
 
         // ───── Messaging ─────
         socket.on("send-message", (data) => {
             const { receiverId } = data;
-            const user = activeUsers.find((u) => u.userId === receiverId);
-            if (user) {
-                io.to(user.socketId).emit("receive-message", data);
-            }
+            console.log(`Global relay message to room: ${receiverId}`);
+            // Use io.to() to ensure the message is delivered via the main server instance to all sockets in the room
+            io.to(receiverId).emit("receive-message", data);
         });
 
         socket.on("typing", (data) => {
             const { receiverId } = data;
-            const user = activeUsers.find((u) => u.userId === receiverId);
-            if (user) {
-                io.to(user.socketId).emit("typing", data);
-            }
+            console.log(`Global typing broadcast to room: ${receiverId}`);
+            io.to(receiverId).emit("typing", data);
         });
 
         socket.on("stop-typing", (data) => {
             const { receiverId } = data;
-            const user = activeUsers.find((u) => u.userId === receiverId);
-            if (user) {
-                io.to(user.socketId).emit("stop-typing", data);
-            }
+            io.to(receiverId).emit("stop-typing", data);
         });
 
         socket.on("message-read", (data) => {
@@ -60,6 +54,11 @@ export const initIO = (httpServer) => {
             if (user) {
                 io.to(user.socketId).emit("message-read", data);
             }
+        });
+
+        socket.on("delete-message", (data) => {
+            const { receiverId } = data;
+            io.to(receiverId).emit("delete-message", data);
         });
 
         // ───── Call Signaling ─────

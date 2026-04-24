@@ -146,6 +146,30 @@
     font-size: 14px;
     display: flex;
     flex-direction: column;
+    color: #262626; /* Dark global text for notifs */
+    gap: 2px;
+}
+
+.notif-message-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.notif-username {
+    font-weight: 700;
+    color: #000000 !important; /* Force Black */
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.notif-username:hover {
+    color: #0095f6 !important;
+}
+
+.notif-action {
+    color: #444444; /* Dark Action Text */
 }
 
 .time-ago {

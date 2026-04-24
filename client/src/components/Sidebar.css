@@ -304,10 +304,10 @@ body.dark-mode .tag-requests-list {
     border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Mobile Responsiveness (Convert to Bottom Bar if needed, but for now simple hide/adjust) */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
     .sidebar {
-        width: 70px;
+        width: var(--sidebar-collapsed-width);
         padding: 1rem 0.5rem;
         align-items: center;
     }
@@ -340,17 +340,17 @@ body.dark-mode .tag-requests-list {
 @media (max-width: 500px) {
     .sidebar {
         width: 100%;
-        height: 60px;
+        height: 70px;
         top: auto;
         bottom: 0;
         left: 0;
         flex-direction: row;
         justify-content: space-around;
         padding: 0;
-        background: var(--primary-color);
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        background: var(--primary);
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.15);
         border-right: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid var(--glass-border);
     }
 
     .sidebar.collapsed {
@@ -359,8 +359,8 @@ body.dark-mode .tag-requests-list {
     }
 
     /* Hide Logo on Mobile Bottom Bar */
-    .sidebar-logo {
-        display: none;
+    .sidebar-logo-container {
+        display: none !important;
     }
 
     .sidebar-nav {
@@ -368,6 +368,7 @@ body.dark-mode .tag-requests-list {
         justify-content: space-evenly;
         width: 100%;
         align-items: center;
+        height: 100%;
     }
 
     .sidebar-link {
@@ -375,10 +376,11 @@ body.dark-mode .tag-requests-list {
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding: 0;
+        padding: 0.5rem;
         height: 100%;
         flex: 1;
         border-radius: 0;
+        gap: 4px;
     }
 
     .sidebar-link:hover {
@@ -387,22 +389,20 @@ body.dark-mode .tag-requests-list {
     }
 
     .sidebar-link.active {
-        color: var(--secondary-color);
+        color: white;
         background: transparent;
     }
 
     .sidebar-icon {
-        font-size: 1.6rem;
+        font-size: 1.4rem;
     }
 
     .sidebar-footer {
         display: none;
-        /* Hide 'More' menu on mobile for simplicity, or move to top header */
     }
 
-    /* Adjust specific links if needed */
     .sidebar-avatar {
         width: 28px;
         height: 28px;
     }
-}
+}

@@ -430,6 +430,63 @@ export const getUserPosts = async (req, res) => {
     }
 };
 
+export const getTaggedPosts = async (req, res) => {
+    const userId = req.params.id;
+    const currentUserId = req.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+        const user = await userModel.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const currentUser = await userModel.findById(currentUserId);
+        const followingIds = currentUser ? currentUser.following.map(id => id.toString()) : [];
+
+        // Query: 
+        // 1. Post is Public OR
+        // 2. Post is mine OR
+        // 3. Post is 'followers' AND I follow the author
+        const visibilityQuery = {
+            $or: [
+                { visibility: 'public' },
+                { userId: currentUserId }, // My posts (I can always see where I tag things)
+                { visibility: 'followers', userId: { $in: followingIds } }
+            ]
+        };
+
+        const finalQuery = {
+            $and: [
+                { tags: { $elemMatch: { userId: userId, status: 'approved' } } },
+                {
+                    $or: [
+                        { status: 'published' },
+                        { status: { $exists: false } },
+                        { status: 'scheduled', scheduledDate: { $lte: new Date() } }
+                    ]
+                },
+                visibilityQuery,
+                { hiddenBy: { $ne: currentUserId } }
+            ]
+        };
+
+        const posts = await postModel.find(finalQuery)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .populate('userId', 'username profilePicture firstname lastname')
+            .populate('tags.userId', 'username firstname lastname');
+
+        const totalPosts = await postModel.countDocuments(finalQuery);
+        const hasMore = skip + posts.length < totalPosts;
+
+        res.status(200).json({ posts, hasMore, totalPosts });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching tagged posts', error: error.message });
+    }
+};
+
 export const getFeed = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;

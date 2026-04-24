@@ -1,6 +1,75 @@
 import UserModel from "../models/userModel.js";
 import { getCache, setCache, deleteCache } from "../services/cacheServices.js";
 
+// Helper for deep cleanup of all user data
+const performPermanentUserCleanup = async (userId) => {
+    try {
+        const PostModel = (await import("../models/postModel.js")).default;
+        const CommentModel = (await import("../models/CommentModel.js")).default;
+        const StoryModel = (await import("../models/StoryModel.js")).default;
+        const ReelModel = (await import("../models/ReelModel.js")).default;
+        const NotificationModel = (await import("../models/NotificationModel.js")).default;
+        const MessageModel = (await import("../models/MessageModel.js")).default;
+        const ChatModel = (await import("../models/ChatModel.js")).default;
+        const SessionModel = (await import("../models/sessionModel.js")).default;
+        const HighlightModel = (await import("../models/HighlightModel.js")).default;
+
+        // 1. Get all post IDs to clean up savedPosts references
+        const userPosts = await PostModel.find({ userId });
+        const userPostIds = userPosts.map(p => p._id);
+
+        // 2. Delete user's own content
+        await PostModel.deleteMany({ userId });
+        await CommentModel.deleteMany({ userId });
+        await StoryModel.deleteMany({ userId });
+        await ReelModel.deleteMany({ userId });
+        await HighlightModel.deleteMany({ userId });
+        await NotificationModel.deleteMany({ $or: [{ recipientId: userId }, { senderId: userId }] });
+        await MessageModel.deleteMany({ $or: [{ senderId: userId }, { receiverId: userId }] });
+        
+        // Remove from chats
+        await ChatModel.updateMany({ members: { $in: [userId] } }, { $pull: { members: userId } });
+        // Delete chats with only 1 member or no members left (since it was likely a 1-on-1 or now useless group)
+        await ChatModel.deleteMany({ members: { $size: 0 } });
+        
+        await SessionModel.deleteMany({ userId });
+
+        // 3. Update other users (remove from followers, following, blocked, etc.)
+        await UserModel.updateMany(
+            {}, 
+            { 
+                $pull: { 
+                    followers: userId, 
+                    following: userId, 
+                    blockedUsers: userId, 
+                    restrictedUsers: userId,
+                    followRequests: userId,
+                    savedPosts: { $in: userPostIds }
+                } 
+            }
+        );
+
+        // 4. Remove user's likes/tags/interactions from other content
+        await PostModel.updateMany({}, { $pull: { likes: userId, tags: { userId: userId }, hiddenBy: userId } });
+        await CommentModel.updateMany({}, { $pull: { likes: userId } });
+        await StoryModel.updateMany({}, { $pull: { viewers: userId, reactions: { userId: userId } } });
+        await ReelModel.updateMany({}, { $pull: { likes: userId, comments: { userId: userId } } });
+
+        // 5. Invalidate caches
+        try {
+            await deleteCache(`userProfile:${userId}`);
+            await deleteCache(`followers:${userId}`);
+            await deleteCache(`following:${userId}`);
+        } catch (e) {
+            console.warn("Cache cleanup failed during deletion", e.message);
+        }
+
+    } catch (error) {
+        console.error("Cleanup error:", error);
+        throw error;
+    }
+};
+
 // Register
 export const register = async (req, res) => {
     try {
@@ -178,14 +247,15 @@ export const changePassword = async (req, res) => {
     }
 }
 
-// Delete user profile
+// Delete user profile (Admin or Self)
 export const deleteUserProfile = async (req, res) => {
     const id = req.params.id;
     const { currentUserId, CurrentUserAdminStatus } = req.body;
     if (id === currentUserId || CurrentUserAdminStatus) {
         try {
+            await performPermanentUserCleanup(id);
             await UserModel.findByIdAndDelete(id);
-            res.status(200).json({ message: 'User profile deleted successfully' });
+            res.status(200).json({ message: 'User profile and all associated data deleted successfully' });
         } catch (error) {
             res.status(500).json({ message: 'Error deleting user profile', error: error.message });
         }
@@ -582,18 +652,34 @@ export const deactivateAccount = async (req, res) => {
     }
 };
 
-// Delete Account (Schedule)
+// Delete Account Permanently (with password verification)
 export const deleteAccount = async (req, res) => {
     try {
-        const user = await UserModel.findById(req.userId);
-        user.accountStatus = 'deleted';
-        user.deactivationDate = new Date(); // 30 day grace period logic would be in a cron job
-        await user.save();
+        const { password } = req.body;
+        const userId = req.userId;
+
+        if (!password) {
+            return res.status(400).json({ message: "Password is required for permanent account deletion." });
+        }
+
+        const user = await UserModel.findById(userId).select("+password");
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // Check password
+        const bcrypt = await import('bcryptjs');
+        const isMatch = await bcrypt.default.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ message: "Incorrect password. Deletion aborted." });
+
+        // Deep Cleanup
+        await performPermanentUserCleanup(userId);
+        
+        // Final Deletion
+        await UserModel.findByIdAndDelete(userId);
 
         res.clearCookie('refreshToken');
-        res.status(200).json({ message: 'Account scheduled for deletion in 30 days.' });
+        res.status(200).json({ message: 'Account and all associated history deleted permanently. Farewell!' });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting account' });
+        res.status(500).json({ message: 'Error deleting account permanently', error: error.message });
     }
 };
 

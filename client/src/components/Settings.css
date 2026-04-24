@@ -1,28 +1,30 @@
 /* Settings Main Header */
 .settings-main-header {
-    margin-bottom: 45px;
-    padding: 30px 4vw;
+    margin-bottom: 30px;
+    padding: 60px 4vw 40px;
     animation: fadeIn 0.8s ease-out;
 }
 
 .settings-title {
-    font-size: clamp(2rem, 5vw, 4rem);
-    font-weight: 900;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 950;
     margin: 0;
     background: var(--brand-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    letter-spacing: -2px;
+    letter-spacing: -1px;
+    line-height: 1.1;
 }
 
 .settings-subtitle {
     color: var(--text-muted);
-    font-size: clamp(1rem, 2vw, 1.2rem);
-    margin-top: 12px;
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    margin-top: 18px;
     font-weight: 500;
-    max-width: 600px;
-    opacity: 0.8;
+    max-width: 650px;
+    opacity: 0.85;
+    line-height: 1.6;
 }
 
 .settings-container {
@@ -45,35 +47,6 @@
     -webkit-text-fill-color: transparent;
 }
 
-.settings-tabs {
-    display: flex;
-    background: #fff;
-    padding: 8px;
-    border-radius: 16px;
-    box-shadow: var(--card-shadow);
-    margin-bottom: 35px;
-    position: sticky;
-    top: 15px;
-    z-index: 100;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.settings-tab {
-    flex: 1;
-    text-align: center;
-    padding: 12px;
-    border-radius: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    color: var(--text-secondary);
-    font-weight: 600;
-}
-
-.settings-tab.active {
-    background: var(--accent-gradient);
-    color: white !important;
-    box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3);
-}
 
 .settings-section {
     background: white;
@@ -687,7 +660,7 @@ input:checked+.slider:before {
 }
 
 .settings-tab.active {
-    color: black;
+    color: var(--primary) !important;
 }
 
 .settings-tab.active::after {
@@ -823,6 +796,42 @@ input:checked+.slider:before {
     .avatar-container {
         width: 120px;
         height: 120px;
+    }
+}
+
+@media (max-width: 500px) {
+    .profile-header {
+        padding: 15px;
+    }
+
+    .avatar-container {
+        width: 100px;
+        height: 100px;
+    }
+
+    .username-text {
+        font-size: 1.5rem;
+    }
+
+    .settings-tabs {
+        padding: 0 5px;
+    }
+
+    .settings-tab {
+        padding: 12px 15px;
+        font-size: 0.75rem;
+    }
+
+    .settings-content-flow {
+        padding: 20px 10px;
+    }
+
+    .stat-item strong {
+        font-size: 1rem;
+    }
+
+    .info-stats-row {
+        gap: 15px;
     }
 }
 

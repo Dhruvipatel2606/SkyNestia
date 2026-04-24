@@ -20,6 +20,12 @@ const Profile = () => {
   const [hasActiveStory, setHasActiveStory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeHighlight, setActiveHighlight] = useState(null);
+  const [taggedPosts, setTaggedPosts] = useState([]);
+  const [hasMoreTagged, setHasMoreTagged] = useState(true);
+  const [taggedPage, setTaggedPage] = useState(1);
+  const [loadingTagged, setLoadingTagged] = useState(false);
+  const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [loadingScheduled, setLoadingScheduled] = useState(false);
 
   // Pagination State
   const [hasMorePosts, setHasMorePosts] = useState(true);
@@ -58,6 +64,13 @@ const Profile = () => {
 
   const profileId = id || currentUserId;
   const isOwnProfile = profileId === currentUserId;
+
+  // Check if profile is locked
+  // If private, not owner, not follower, AND no viewable posts (meaning all posts are private/followers-only or empty)
+  // If we have 'posts' (which are public ones returned from backend), we shouldn't show the full lock screen.
+  // We can show a partial lock or just the posts.
+  // The backend now returns public posts for strangers even if private.
+  const isLocked = userProfile?.isPrivate && !isOwnProfile && !userProfile?.followers?.some(u => (u._id || u) === currentUserId) && posts.length === 0;
 
   useEffect(() => {
     if (!profileId) return;
@@ -117,26 +130,71 @@ const Profile = () => {
       API.get('/post/tags/pending')
         .then(res => setPendingTags(res.data))
         .catch(err => console.error("Failed to fetch pending tags", err));
-      API.get('/post/drafts').then(res => setDrafts(res.data)).catch(err => console.error("Failed drafts", err));
-      API.get('/post/scheduled').then(res => setScheduled(res.data)).catch(err => console.error("Failed scheduled", err));
+
+      setLoadingDrafts(true);
+      API.get('/post/drafts')
+        .then(res => setDrafts(res.data))
+        .catch(err => console.error("Failed drafts", err))
+        .finally(() => setLoadingDrafts(false));
+
+      setLoadingScheduled(true);
+      API.get('/post/scheduled')
+        .then(res => setScheduled(res.data))
+        .catch(err => console.error("Failed scheduled", err))
+        .finally(() => setLoadingScheduled(false));
     }
   }, [profileId, isOwnProfile]);
 
   const loadMorePosts = async () => {
-    if (loadingPosts || !hasMorePosts) return;
-    setLoadingPosts(true);
-    try {
-      const nextPage = postsPage + 1;
-      const res = await API.get(`/post/user/${profileId}?page=${nextPage}&limit=9`);
-      setPosts(prev => [...prev, ...res.data.posts]);
-      setHasMorePosts(res.data.hasMore);
-      setPostsPage(nextPage);
-    } catch (error) {
-      console.error("Error loading more posts", error);
-    } finally {
-      setLoadingPosts(false);
+    if (activeTab === 'posts') {
+      if (loadingPosts || !hasMorePosts) return;
+      setLoadingPosts(true);
+      try {
+        const nextPage = postsPage + 1;
+        const res = await API.get(`/post/user/${profileId}?page=${nextPage}&limit=9`);
+        setPosts(prev => [...prev, ...res.data.posts]);
+        setHasMorePosts(res.data.hasMore);
+        setPostsPage(nextPage);
+      } catch (error) {
+        console.error("Error loading more posts", error);
+      } finally {
+        setLoadingPosts(false);
+      }
+    } else if (activeTab === 'tagged') {
+      if (loadingTagged || !hasMoreTagged) return;
+      setLoadingTagged(true);
+      try {
+        const nextPage = taggedPage + 1;
+        const res = await API.get(`/post/user/${profileId}/tagged?page=${nextPage}&limit=9`);
+        setTaggedPosts(prev => [...prev, ...res.data.posts]);
+        setHasMoreTagged(res.data.hasMore);
+        setTaggedPage(nextPage);
+      } catch (error) {
+        console.error("Error loading more tagged posts", error);
+      } finally {
+        setLoadingTagged(false);
+      }
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'tagged' && taggedPosts.length === 0 && !isLocked) {
+      const fetchTagged = async () => {
+        setLoadingTagged(true);
+        try {
+          const res = await API.get(`/post/user/${profileId}/tagged?page=1&limit=9`);
+          setTaggedPosts(res.data.posts || []);
+          setHasMoreTagged(res.data.hasMore);
+          setTaggedPage(1);
+        } catch (err) {
+          console.error("Failed to fetch tagged posts", err);
+        } finally {
+          setLoadingTagged(false);
+        }
+      };
+      fetchTagged();
+    }
+  }, [activeTab, profileId, isLocked]);
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -190,17 +248,20 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+    const password = window.prompt("CRITICAL: To permanently wipe your account and all data, please enter your password to authorize:");
+    if (!password) return;
+
+    if (window.confirm("FINAL WARNING: This action is IRREVOCABLE. Your profile, posts, and history will be deleted forever. Proceed?")) {
       try {
-        await API.delete(`/user/${currentUserId}`, {
-          data: { currentUserId: currentUserId, CurrentUserAdminStatus: currentUser.isAdmin }
+        await API.delete('/user/delete', {
+          data: { password }
         });
         sessionStorage.clear();
         localStorage.clear();
-        navigate('/auth');
+        navigate('/login');
       } catch (err) {
         console.error("Delete account error", err);
-        alert("Failed to delete account");
+        alert(err.response?.data?.message || "Failed to delete account. Please verify your password.");
       }
     }
   };
@@ -360,12 +421,6 @@ const Profile = () => {
     }
   };
 
-  // Check if profile is locked
-  // If private, not owner, not follower, AND no viewable posts (meaning all posts are private/followers-only or empty)
-  // If we have 'posts' (which are public ones returned from backend), we shouldn't show the full lock screen.
-  // We can show a partial lock or just the posts.
-  // The backend now returns public posts for strangers even if private.
-  const isLocked = userProfile?.isPrivate && !isOwnProfile && !userProfile?.followers?.some(u => (u._id || u) === currentUserId) && posts.length === 0;
 
   if (!profileId) return <div className="card">Please log in to view your profile.</div>;
   if (loading) return <div style={{ textAlign: 'center', marginTop: '100px', color: '#2563eb', width: '100%' }}>Loading Profile...</div>;
@@ -376,6 +431,7 @@ const Profile = () => {
   else if (activeTab === 'drafts') postsToRender = drafts;
   else if (activeTab === 'scheduled') postsToRender = scheduled;
   else if (activeTab === 'reels') postsToRender = userReels;
+  else if (activeTab === 'tagged') postsToRender = taggedPosts;
 
   return (
     <div className="profile-container">
@@ -534,7 +590,7 @@ const Profile = () => {
         </div>
       ) : (
         <div className="photos-grid">
-          {activeTab !== 'tagged' && postsToRender.map(post => {
+          {postsToRender.map(post => {
             const imgUrl = getPostImg(post);
             return (
               <div key={post._id} className="photo-item" onClick={() => activeTab === 'reels' ? navigate('/reels') : navigate(`/post/${post._id}`)}>
@@ -558,26 +614,32 @@ const Profile = () => {
               </div>
             )
           })}
-          {activeTab === 'posts' && posts.length === 0 && (
+          {activeTab === 'posts' && posts.length === 0 && !loading && (
             <div className="empty-state">
               <div className="camera-icon">📷</div>
               <h3>{isOwnProfile ? "Share photos" : "No posts yet"}</h3>
               {isOwnProfile && <button className="action-btn text-blue" onClick={() => navigate('../create-post')}>Share your first photo</button>}
             </div>
           )}
-          {activeTab === 'drafts' && drafts.length === 0 && (
+          {activeTab === 'reels' && userReels.length === 0 && !loading && (
+            <div className="empty-state">
+              <div className="camera-icon">🎥</div>
+              <h3>No reels yet</h3>
+            </div>
+          )}
+          {activeTab === 'drafts' && drafts.length === 0 && !loadingDrafts && (
             <div className="empty-state">
               <div className="camera-icon">📝</div>
               <h3>No drafts yet</h3>
             </div>
           )}
-          {activeTab === 'scheduled' && scheduled.length === 0 && (
+          {activeTab === 'scheduled' && scheduled.length === 0 && !loadingScheduled && (
             <div className="empty-state">
               <div className="camera-icon">🗓️</div>
               <h3>No scheduled posts</h3>
             </div>
           )}
-          {activeTab === 'tagged' && (
+          {activeTab === 'tagged' && taggedPosts.length === 0 && !loadingTagged && (
             <div className="empty-state">
               <div className="camera-icon">🏷️</div>
               <h3>No tagged photos</h3>

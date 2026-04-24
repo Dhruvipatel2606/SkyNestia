@@ -755,245 +755,96 @@ body.dark-mode {
 }
 
 /* Responsive */
-@media (max-width: 735px) {
+@media (max-width: 768px) {
     .profile-container {
         padding: 0;
-        /* Remove padding on mobile */
     }
 
     .profile-header {
         flex-direction: column;
-        margin-bottom: 0px;
-        padding: 16px;
+        align-items: center;
+        text-align: center;
+        padding: 20px;
     }
 
     .profile-avatar-section {
         margin-right: 0;
-        margin-bottom: 0;
-        /* Changed */
-        width: 100%;
-        max-width: none;
-        justify-content: flex-start;
-        display: none;
-        /* On mobile, structure is different. Let's keep simpler responsive: */
-    }
-
-    /* Let's try to keep the layout but adjust sizes for mobile: 
-       Row 1: Avatar (Left) + Stats (Right)
-       Row 2: Bio
-       Row 3: Buttons
-    */
-    /* Current Desktop Layout:
-       Col 1: Avatar
-       Col 2: [Username + Buttons] -> [Stats] -> [Bio] 
-    */
-
-    /* Mobile Override */
-    .profile-header {
-        display: grid;
-        grid-template-columns: min-content 1fr;
-        gap: 20px;
-        padding: 14px 16px;
-    }
-
-    .profile-avatar-section {
-        display: block;
-        /* Show alignment */
-        margin-right: 0;
+        margin-bottom: 20px;
         width: auto;
-        padding: 0;
     }
 
     .avatar-container {
-        width: 77px;
-        height: 77px;
+        width: 120px;
+        height: 120px;
     }
 
     .profile-info-section {
-        display: contents;
-        /* Allow children to flow in grid but logic is hard here without HTML change */
-        /* Let's stick to flex manipulation */
-    }
-
-    /* Fallback responsive that works with existing HTML structure */
-    .profile-header {
+        width: 100%;
         display: flex;
-        flex-direction: row;
-        /* Horizontal again for Avatar + Name? No */
-        flex-wrap: wrap;
-        padding-bottom: 0;
-    }
-
-    .profile-avatar-section {
-        width: 77px;
-        margin-right: 20px;
-    }
-
-    .profile-info-section {
-        width: calc(100% - 100px);
-        padding-top: 5px;
+        flex-direction: column;
+        align-items: center;
     }
 
     .info-top-row {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-        margin-bottom: 10px;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .username-text {
+        font-size: 24px;
     }
 
     .info-stats-row {
-        display: none;
-        /* Hide desktop stats, normally shown in separate row on mobile */
+        width: 100%;
+        justify-content: space-evenly;
+        padding: 15px 0;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 20px;
     }
 
-    .info-bio-row {
+    .profile-actions-row {
         width: 100%;
-        margin-top: 10px;
-    }
-
-    .profile-actions {
-        width: 100%;
-        margin-top: 10px;
+        flex-direction: column;
     }
 
     .action-btn {
         width: 100%;
-        text-align: center;
     }
 
-    /* User List Modal */
-    .user-list-modal {
-        background-color: var(--bg-color);
-        width: 400px;
-        max-width: 95%;
-        height: 400px;
-        /* Fixed height to ensure scrolling always works if content overflows, or use max-height: 70vh */
-        max-height: 70vh;
-        border-radius: 12px;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+    .photos-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+    }
+}
+
+@media (max-width: 500px) {
+    .avatar-container {
+        width: 90px;
+        height: 90px;
     }
 
-    .modal-header {
-        padding: 12px 16px;
-        text-align: center;
-        font-weight: 600;
-        border-bottom: 1px solid var(--border-color);
-        position: relative;
-        font-size: 16px;
-    }
-
-    .modal-search-bar {
-        padding: 8px 16px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .modal-search-input {
-        width: 100%;
-        padding: 8px 12px;
-        background-color: var(--button-bg);
-        border: none;
-        border-radius: 8px;
-        color: var(--text-primary);
-        font-size: 14px;
-        outline: none;
-        box-sizing: border-box;
-        /* Ensure padding doesn't affect width */
-    }
-
-    .close-modal {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
+    .username-text {
         font-size: 20px;
     }
 
-    .user-list-content {
-        overflow-y: auto;
-        flex-grow: 1;
-        padding: 0;
+    .info-stats-row {
+        gap: 10px;
     }
 
-    .user-list-item {
-        display: flex;
-        align-items: center;
-        padding: 8px 16px;
-        cursor: pointer;
-    }
-
-    .user-list-item:hover {
-        background-color: rgba(0, 0, 0, 0.03);
-    }
-
-    .user-list-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        margin-right: 12px;
-        object-fit: cover;
-    }
-
-    .user-list-info {
-        flex-grow: 1;
-    }
-
-    .user-list-username {
-        font-weight: 600;
+    .stat-item {
         font-size: 14px;
-    }
-
-    .user-list-fullname {
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-
-    .list-action-btn {
-        background-color: var(--button-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        padding: 6px 16px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        width: auto;
-        /* Override default */
-        min-width: 80px;
-    }
-
-    /* Mobile Stats Bar (New) */
-
-
-    /* Simplified Mobile: */
-    .profile-header {
         display: flex;
         flex-direction: column;
+        align-items: center;
     }
 
-    .profile-avatar-section {
-        margin: 0 auto 20px;
+    .photos-grid {
+        grid-template-columns: repeat(3, 1fr);
     }
-
-    .profile-info-section {
-        text-align: left;
-        width: 100%;
-        padding: 0;
+    
+    .profile-tabs {
+        gap: 30px;
     }
-
-    .info-top-row {
-        flex-direction: row;
-        justify-content: space-between;
-        width: 100%;
-    }
-
-    .info-stats-row {
-        justify-content: space-around;
-        border-top: 1px solid var(--border-color);
-        padding: 10px 0;
-        margin: 20px -20px 0;
-        /* Full width border */
-    }
-}
+}
